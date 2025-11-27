@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch:*)",
+      "Bash(uv run python:*)",
+      "Bash(nvidia-smi:*)",
+      "Bash(uv pip uninstall:*)",
+      "Bash(uv pip install:*)",
+      "Bash(.venvScriptsactivate)",
+      "Bash(pip uninstall:*)",
+      "Bash(pip install:*)",
+      "Bash(.venv/Scripts/python.exe -m pip:*)",
+      "Bash(.venv/Scripts/python.exe:*)",
+      "Bash(uv sync:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

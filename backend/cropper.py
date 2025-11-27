@@ -11,6 +11,7 @@ import datetime
 import logging
 import os
 import sys
+import tempfile
 import traceback
 import warnings
 from pathlib import Path
@@ -465,6 +466,7 @@ class ImageCropper:
             return []
 
         try:
+            logger.info("Loading DETR model from HuggingFace: facebook/detr-resnet-50")
             # Suppress warnings
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore")
@@ -477,9 +479,20 @@ class ImageCropper:
                     "facebook/detr-resnet-50"
                 )
 
+            logger.info("DETR model ready")
+
+            # Move model to GPU if available
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            model = model.to(device)
+            if torch.cuda.is_available():
+                logger.info(f"Using GPU: {torch.cuda.get_device_name(0)}")
+            else:
+                logger.info("Using CPU (GPU not available)")
+
             # Prepare image
             pil_image = Image.open(self.image_path)
             inputs = processor(images=pil_image, return_tensors="pt")
+            inputs = {k: v.to(device) for k, v in inputs.items()}
 
             # Run inference
             with torch.no_grad():
@@ -603,6 +616,7 @@ class ImageCropper:
             return []
 
         try:
+            logger.info(f"Loading RT-DETR model from HuggingFace: {RTDETR_MODEL_NAME}")
             # Suppress warnings
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore")
@@ -611,9 +625,20 @@ class ImageCropper:
                 processor = RTDetrImageProcessor.from_pretrained(RTDETR_MODEL_NAME)
                 model = RTDetrForObjectDetection.from_pretrained(RTDETR_MODEL_NAME)
 
+            logger.info("RT-DETR model ready")
+
+            # Move model to GPU if available
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            model = model.to(device)
+            if torch.cuda.is_available():
+                logger.info(f"Using GPU: {torch.cuda.get_device_name(0)}")
+            else:
+                logger.info("Using CPU (GPU not available)")
+
             # Prepare image
             pil_image = Image.open(self.image_path)
             inputs = processor(images=pil_image, return_tensors="pt")
+            inputs = {k: v.to(device) for k, v in inputs.items()}
 
             # Run inference
             with torch.no_grad():
@@ -738,12 +763,12 @@ class ImageCropper:
             return []
 
         try:
-            # Load YOLO model (cached to avoid reloading)
+            # Load YOLO model (cached in memory for this session)
             global _yolo_model_cache
             if _yolo_model_cache is None:
-                logger.info("Loading YOLO model for the first time...")
+                logger.info(f"Loading YOLO model from: {YOLO_MODEL_PATH}")
                 _yolo_model_cache = UltralyticsYOLO(YOLO_MODEL_PATH)
-                logger.info("YOLO model loaded successfully")
+                logger.info("YOLO model ready")
                 # Warm up the model with a dummy inference to ensure it's fully initialized
                 logger.info("Warming up YOLO model...")
                 try:
@@ -751,7 +776,9 @@ class ImageCropper:
                     dummy_image = np.zeros(
                         (WARMUP_IMAGE_SIZE, WARMUP_IMAGE_SIZE, 3), dtype=np.uint8
                     )
-                    temp_path = "/tmp/dummy_warmup.jpg"
+                    # Use system temp directory for cross-platform compatibility
+                    temp_dir = tempfile.gettempdir()
+                    temp_path = os.path.join(temp_dir, "dummy_warmup.jpg")
                     cv2.imwrite(temp_path, dummy_image)
                     _ = _yolo_model_cache(temp_path, conf=0.1, verbose=False)
                     logger.info("YOLO model warmup completed")
@@ -893,24 +920,40 @@ class ImageCropper:
             return []
 
         try:
-            # Load RF-DETR model (cached to avoid reloading)
+            # Load RF-DETR model (cached in memory for this session)
             global _rfdetr_model_cache
             if _rfdetr_model_cache is None:
-                logger.info("Loading RF-DETR model for the first time...")
-                # Check if model file exists
+                # Ensure models directory exists
+                RFDETR_MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+                # Check if model file exists in correct location
                 if RFDETR_MODEL_PATH.exists():
-                    logger.info(f"Loading existing model from: {RFDETR_MODEL_PATH}")
+                    logger.info(f"Loading RF-DETR model from disk: {RFDETR_MODEL_PATH}")
                     _rfdetr_model_cache = RFDETRLarge(
                         pretrain_weights=str(RFDETR_MODEL_PATH)
                     )
                 else:
-                    logger.info("Model not found, downloading to default location...")
-                    logger.info(f"Model will be cached at: {RFDETR_MODEL_PATH}")
-                    # Let rfdetr download to its default location first
-                    _rfdetr_model_cache = RFDETRLarge()
-                    # Note: On first run, model downloads to ~/.cache/roboflow/
-                    # We accept this behavior rather than trying to override it
-                logger.info("RF-DETR model loaded successfully")
+                    logger.info("Downloading RF-DETR model (first time only)...")
+                    logger.info(f"Model will be saved to: {RFDETR_MODEL_PATH}")
+
+                    # RFDETRLarge() downloads to current working directory
+                    # Save current directory and change to models directory
+                    original_cwd = os.getcwd()
+                    try:
+                        os.chdir(RFDETR_MODEL_PATH.parent)
+                        _rfdetr_model_cache = RFDETRLarge()
+                    finally:
+                        os.chdir(original_cwd)
+
+                logger.info("RF-DETR model ready")
+
+                # Log GPU availability for RF-DETR
+                import torch
+
+                if torch.cuda.is_available():
+                    logger.info(f"Using GPU: {torch.cuda.get_device_name(0)}")
+                else:
+                    logger.info("Using CPU (GPU not available)")
 
             model = _rfdetr_model_cache
 

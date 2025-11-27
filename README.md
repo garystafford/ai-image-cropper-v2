@@ -1,7 +1,7 @@
 # AI Image Cropper Version 2.0
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/garystafford/ai-image-cropper-v2/ci.yml?branch=main&style=flat-square)](https://github.com/garystafford/ai-image-cropper-v2/actions)
-[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -162,129 +162,58 @@ The architecture diagram shows how the three entry points (CLI, React Web UI, Fa
 
 ## Quick Start
 
-This project offers two ways to use the AI Image Cropper:
-
-### Option 1: CLI (Simplest)
+**Prerequisites:** NVIDIA GPU, [CUDA drivers](https://www.nvidia.com/Download/index.aspx), Python 3.12+, [uv package manager](https://docs.astral.sh/uv/)
 
 ```bash
-# Install uv (if not already installed)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Clone and setup
-git clone https://github.com/garystafford/ai-image-cropper-v2.git
-cd ai-image-cropper-v2
-
-# Install backend dependencies
-uv sync
-
-# Use the CLI directly
-uv run crop-cli sample_images/sample_image_00001.jpg --method yolo --visualize
-
-# Batch object detection and cropping
-uv run crop-cli sample_images/sample_image_00001.jpg --method yolo --batch-crop
-```
-
-### Option 2: React Web UI (Modern Interface)
-
-```bash
-# Install backend dependencies
-uv sync
-
-# Install frontend dependencies
-cd frontend
-npm install
-cd ..
-
-# Terminal 1: Start backend API
-uvicorn backend.api:app --reload
-
-# Terminal 2: Start frontend
-cd frontend && npm run dev
-# Opens at http://localhost:5173
-```
-
-See detailed setup instructions in the [Installation](#installation) section below.
-
-## Installation
-
-This project uses [uv](https://docs.astral.sh/uv/) for fast, reliable Python package management.
-
-### Why uv?
-
-- ⚡ **10-100x faster** than traditional package managers
-- 🔒 **Deterministic builds** with automatic lock file generation
-- 🎯 **All-in-one tool** - replaces multiple Python tools (pip-tools, pipx, poetry, pyenv, virtualenv)
-- 📦 **Better dependency resolution** with clear error messages
-- 🚀 **Modern Python tooling** written in Rust for maximum performance
-
-### 1. Install uv
-
-**macOS/Linux:**
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-**Windows:**
-
-```powershell
+# 1. Install uv (if not installed)
+# Windows:
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
+# macOS/Linux:
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-### 2. Clone the Repository
-
-```bash
+# 2. Clone and install dependencies
 git clone https://github.com/garystafford/ai-image-cropper-v2.git
 cd ai-image-cropper-v2
-```
-
-### 3. Install Backend Dependencies
-
-```bash
-# Create virtual environment and install Python dependencies (one command!)
 uv sync
 
-# For development with testing tools
-uv sync --all-extras
+# 3. Install GPU-enabled PyTorch (CRITICAL - do this after EVERY uv sync)
+uv pip uninstall torch torchvision
+uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
+# 4. Source the Environment and Test for GPU
+# Windows:
+.venv\Scripts\activate
+python test_gpu.py
+
+# macOS/Linux:
+source .venv/bin/activate
+python test_gpu.py
+
+# 5. Run detection
+python -m backend.cropper sample_images/sample_image_00001.jpg --method rf-detr
 ```
 
-**Note**: On first run, YOLO, RT-DETR, and RF-DETR will automatically download their model files (~200-300MB for YOLO v12 X-Large, ~200MB for RT-DETR, ~1.4GB for RF-DETR).
+**Note:** On first run, AI models automatically download (~200MB-1.4GB depending on method).
 
-### 4. (Optional) Install Frontend Dependencies
+## ⚠️ CRITICAL: GPU Support
 
-Only needed if you want to use the React Web UI (Option 2):
-
-**Prerequisites**: Node.js 18+
+**IMPORTANT:** After running `uv sync` (or any command that updates dependencies), you MUST reinstall PyTorch with CUDA support:
 
 ```bash
-# Navigate to frontend directory
-cd frontend
-
-# Install dependencies
-npm install
-
-# Return to root
-cd ..
+uv pip uninstall torch torchvision
+uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 ```
 
-### 5. Using Entry Points (Recommended)
+**Why?** The `uv.lock` file contains torch as a transitive dependency (required by rfdetr, ultralytics, etc.) and defaults to the CPU version. Running `uv sync` will reinstall the CPU version, breaking GPU support.
 
-After installation, use the convenient CLI entry point:
+**To avoid this issue:** Only run `uv sync` when absolutely necessary (e.g., adding new dependencies). For day-to-day usage, your environment is already set up.
 
-```bash
-# Use CLI tool
-uv run crop-cli image.jpg --method yolo --visualize
-```
-
-Or activate the virtual environment for direct access:
+## Web UI (optional)
 
 ```bash
-source .venv/bin/activate  # macOS/Linux
-# or
-.venv\Scripts\activate     # Windows
-
-# Then use directly
-crop-cli image.jpg --method yolo
+cd frontend && npm install && cd ..
+uvicorn backend.api:app --reload  # Terminal 1
+cd frontend && npm run dev         # Terminal 2 - Opens http://localhost:5173
 ```
 
 ## Usage
@@ -371,7 +300,7 @@ The React UI provides a modern, professional interface using AWS Cloudscape Desi
 #### Prerequisites
 
 - Node.js 18+
-- Backend and frontend dependencies installed (see [Installation](#installation))
+- Backend and frontend dependencies installed (see [Quick Start](#quick-start))
 
 #### Start React App
 
@@ -537,7 +466,7 @@ uvx ruff check . --fix
 uvx ruff format .
 
 # Remove unused imports with autoflake
-uvx autoflake --remove-all-unused-imports --in-place **/*.py
+uvx autoflake --remove-all-unused-imports --in-place --recursive backend/
 
 # Build package
 uvx hatch build
