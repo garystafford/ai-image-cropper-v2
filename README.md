@@ -335,9 +335,6 @@ uv run crop-cli family.jpg --method yolo --batch-crop --batch-output-dir ./peopl
 # Batch crop with RT-DETR for faster processing
 uv run crop-cli room.jpg --method rt-detr --batch-crop --confidence 0.5
 
-# Batch crop with RF-DETR for high accuracy
-uv run crop-cli room.jpg --method rf-detr --batch-crop --confidence 0.5
-
 # Batch crop with custom aspect ratio and padding (DETR)
 uv run crop-cli room.jpg --method detr --batch-crop --aspect-ratio 4:3 --padding 15
 
@@ -361,7 +358,7 @@ options:
   --threshold           Threshold value for contour detection (default: 240)
   --visualize           Display detection visualization window
   --crop-output         Save cropped image to specified path
-  --batch-crop          Crop all detected objects individually (YOLO/RT-DETR/RF-DETR/DETR only)
+  --batch-crop          Crop all detected objects individually (YOLO/RT-DETR/DETR only)
   --batch-output-dir    Output directory for batch crop (default: cropped_images)
   --image-quality       JPEG quality for saved images (1-100, default: 95)
   --debug               Save debug images during processing
@@ -495,7 +492,7 @@ SERVER_PORT = 7860
 - **RF-DETR** provides highly accurate detection
 - **DETR** provides detailed object detection but is slower than YOLO, RT-DETR, and RF-DETR
 - For best results, use padding of 5-10%
-- Batch mode works only with YOLO, RT-DETR, RF-DETR, and DETR methods
+- Batch mode works only with YOLO, RT-DETR, and DETR methods
 - Common detectable objects: person, car, couch, chair, dog, cat, bottle, laptop, bicycle, etc.
 - Use `--visualize` in CLI to preview detection before cropping
 
