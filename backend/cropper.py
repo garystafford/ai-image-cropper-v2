@@ -61,16 +61,16 @@ warnings.filterwarnings(
 
 # Optional deep learning imports
 try:
-    from transformers import DetrImageProcessor, DetrForObjectDetection
     import torch
+    from transformers import DetrForObjectDetection, DetrImageProcessor
 
     DETR_AVAILABLE = True
 except ImportError:
     DETR_AVAILABLE = False
 
 try:
-    from transformers import RTDetrImageProcessor, RTDetrForObjectDetection
     import torch
+    from transformers import RTDetrForObjectDetection, RTDetrImageProcessor
 
     RTDETR_AVAILABLE = True
 except ImportError:

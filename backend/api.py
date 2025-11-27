@@ -86,7 +86,7 @@ def _build_info_header(cropper: ImageCropper, method: str) -> List[str]:
     ]
 
     # Add model download warning for first-time use (only for models we can verify)
-    from backend.config import YOLO_MODEL_PATH, RFDETR_MODEL_PATH
+    from backend.config import RFDETR_MODEL_PATH, YOLO_MODEL_PATH
 
     if method == "yolo" and not YOLO_MODEL_PATH.exists():
         info_lines.extend(
