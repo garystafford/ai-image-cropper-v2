@@ -35,72 +35,45 @@ Intelligent image cropping tool with multiple detection methods including You On
 - 🖥️ **Cross-Platform**: Windows, macOS, and Linux support
 - ⚡ **GPU Acceleration**: NVIDIA CUDA GPU acceleration or CPU fallback
 
-## Processing Flow
+## Request/Response Flow
 
 ```mermaid
----
-config:
-  theme: neutral
-  look: neo
----
-flowchart LR
-    subgraph Input["User Input"]
-        UI[Web UI]
-        CLI[Command Line]
-        API[REST API]
+sequenceDiagram
+    participant User
+    participant UI as Web UI / CLI / API
+    participant Core as ImageCropper Engine
+    participant Detector as Detection Method<br/>(CV or AI Model)
+    participant GPU as GPU/CPU
+    participant Storage as File System
+
+    User->>UI: Upload image + parameters
+    UI->>Core: Load image
+    Core->>Storage: Read image file
+    Storage-->>Core: Image data
+    Core-->>UI: Image loaded
+
+    UI->>Core: Request detection
+    Core->>Detector: Run detection
+
+    alt AI Model (YOLO/DETR/RT-DETR/RF-DETR)
+        Detector->>GPU: Process on GPU/CPU
+        GPU-->>Detector: Bounding boxes
+    else Computer Vision (Contour/Saliency/Edge)
+        Detector->>Detector: Process locally
     end
 
-    subgraph Load["Image Loading"]
-        LOAD[Load & Validate Image]
-    end
+    Detector-->>Core: Detection results
 
-    subgraph Detect["Object Detection"]
-        CV[Computer Vision<br/>Contour/Saliency/Edge/GrabCut]
-        AI[AI Models<br/>YOLO/DETR/RT-DETR/RF-DETR]
-    end
+    Core->>Core: Add padding
+    Core->>Core: Adjust aspect ratio
+    Core->>Storage: Save cropped image
+    Storage-->>Core: File saved
 
-    subgraph Compute["Processing"]
-        GPU[NVIDIA CUDA GPU]
-        CPU[CPU Fallback]
-    end
-
-    subgraph Process["Post-Processing"]
-        PAD[Add Padding]
-        ASPECT[Adjust Aspect Ratio]
-    end
-
-    subgraph Output["Results"]
-        CROP[Cropped Image]
-        VIZ[Visualization]
-        META[Metadata]
-    end
-
-    UI --> LOAD
-    CLI --> LOAD
-    API --> LOAD
-
-    LOAD --> CV
-    LOAD --> AI
-
-    CV --> PAD
-    AI --> GPU
-    AI --> CPU
-    GPU --> PAD
-    CPU --> PAD
-
-    PAD --> ASPECT
-    ASPECT --> CROP
-    ASPECT --> VIZ
-    ASPECT --> META
-
-    CROP --> UI
-    CROP --> CLI
-    CROP --> API
-    VIZ --> UI
-    META --> API
+    Core-->>UI: Cropped image + visualization + metadata
+    UI-->>User: Display results
 ```
 
-The processing flow shows how user input (Web UI, CLI, or REST API) flows through image loading, object detection (using either computer vision or AI models with GPU/CPU acceleration), post-processing (padding and aspect ratio adjustment), and finally produces cropped images, visualizations, and metadata.
+The swimlane diagram shows the request/response flow from user input through the system layers: the user interface accepts the request, the ImageCropper engine coordinates processing, detection methods (computer vision or AI models) run on GPU/CPU, and results flow back through the layers to the user.
 
 ## Quick Start
 
