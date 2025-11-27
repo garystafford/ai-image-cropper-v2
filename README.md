@@ -38,7 +38,7 @@ Intelligent image cropping tool with multiple detection methods including You On
 ```mermaid
 graph TB
     subgraph "Entry Points"
-        CLI[CLI Interface<br/>crop-cli]
+        CLI[CLI Interface<br/>main function]
         WEB[React Web UI<br/>frontend/]
         API[FastAPI REST API<br/>api.py]
     end
@@ -47,120 +47,145 @@ graph TB
         CONFIG[config.py<br/>Constants & Settings]
     end
 
-    subgraph "Core Engine"
-        CROPPER[ImageCropper Class<br/>cropper.py]
-        LOADER[Image Loader<br/>load_image]
-        PROCESSOR[Image Processor<br/>crop_and_visualize]
+    subgraph "Core Engine - ImageCropper Class"
+        LOADER[load_image<br/>Load & validate image]
+        SELECTOR[select_best_detection<br/>Choose best match]
+        PADDING[add_padding<br/>Add breathing room]
+        ASPECT[adjust_crop_for_aspect_ratio<br/>Maintain proportions]
+        CROPSAVE[crop_and_save<br/>Save single crop]
+        VIZCROP[visualize_crop<br/>Preview crop area]
+        VIZDETECT[visualize_detections<br/>Show all detections]
     end
 
-    subgraph "Detection Methods - Computer Vision"
-        CONTOUR[Contour Detection<br/>find_object_bounds_contour]
-        SALIENCY[Saliency Detection<br/>find_object_bounds_saliency]
-        EDGE[Edge Detection<br/>find_object_bounds_edge]
-        GRABCUT[GrabCut Segmentation<br/>find_object_bounds_grabcut]
+    subgraph "Single Object Detection"
+        CONTOUR[find_object_bounds_contour<br/>Contour detection]
+        SALIENCY[find_object_bounds_saliency<br/>Saliency detection]
+        EDGE[find_object_bounds_edge<br/>Edge detection]
+        GRABCUT[find_object_bounds_grabcut<br/>GrabCut segmentation]
+        DETR_S[find_object_bounds_detr<br/>DETR single object]
+        RTDETR_S[find_object_bounds_rtdetr<br/>RT-DETR single object]
+        YOLO_S[find_object_bounds_yolo<br/>YOLO single object]
+        RFDETR_S[find_object_bounds_rfdetr<br/>RF-DETR single object]
     end
 
-    subgraph "Detection Methods - AI/ML"
-        DETR[DETR<br/>facebook/detr-resnet-50<br/>Transformer-based]
-        RTDETR[RT-DETR<br/>PekingU/rtdetr<br/>Real-time Transformer]
-        YOLO[YOLO<br/>yolo12x.pt<br/>Ultralytics]
-        RFDETR[RF-DETR<br/>rf-detr-large.pth<br/>Receptive Field DETR]
+    subgraph "Batch Object Detection"
+        DETR_B[find_all_objects_detr<br/>DETR all objects]
+        RTDETR_B[find_all_objects_rtdetr<br/>RT-DETR all objects]
+        YOLO_B[find_all_objects_yolo<br/>YOLO all objects]
+        RFDETR_B[find_all_objects_rfdetr<br/>RF-DETR all objects]
+        BATCHCROP[batch_crop_detections<br/>Crop all objects]
     end
 
     subgraph "External Dependencies"
         CV2[OpenCV<br/>cv2]
         PIL[Pillow<br/>PIL]
-        TORCH[PyTorch<br/>torch]
+        TORCH[PyTorch + CUDA<br/>torch.device]
         TRANS[Transformers<br/>HuggingFace]
         ULTRA[Ultralytics<br/>YOLO]
-        RFLIB[RF-DETR Lib<br/>rfdetr]
+        RFLIB[RF-DETR<br/>rfdetr]
     end
 
-    subgraph "Processing Pipeline"
-        INPUT[Input Image]
-        DETECT[Object Detection]
-        BOUNDS[Bounding Box]
-        CROP[Crop Image]
-        VIZ[Visualization]
-        OUTPUT[Output<br/>Cropped Image<br/>Metadata<br/>Visualization]
-    end
-
-    subgraph "Batch Processing"
-        BATCH[Batch Cropper<br/>--batch-crop flag]
-        MULTI[Multiple Images]
-        FOLDER[Output Folder<br/>cropped_images/]
+    subgraph "GPU Acceleration"
+        GPU[NVIDIA CUDA<br/>GPU Device]
+        CPU[CPU Fallback<br/>torch.device cpu]
     end
 
     %% Entry Points to Core
-    CLI --> CROPPER
+    CLI --> LOADER
     WEB --> API
-    API --> CROPPER
-    CONFIG --> CROPPER
+    API --> LOADER
+    CONFIG --> CLI
     CONFIG --> API
 
-    %% Core to Detection Methods
-    CROPPER --> LOADER
-    LOADER --> PROCESSOR
-    PROCESSOR --> CONTOUR
-    PROCESSOR --> SALIENCY
-    PROCESSOR --> EDGE
-    PROCESSOR --> GRABCUT
-    PROCESSOR --> DETR
-    PROCESSOR --> RTDETR
-    PROCESSOR --> YOLO
-    PROCESSOR --> RFDETR
+    %% Single Object Flow
+    LOADER --> CONTOUR
+    LOADER --> SALIENCY
+    LOADER --> EDGE
+    LOADER --> GRABCUT
+    LOADER --> DETR_S
+    LOADER --> RTDETR_S
+    LOADER --> YOLO_S
+    LOADER --> RFDETR_S
 
-    %% Detection Methods to Dependencies
+    CONTOUR --> PADDING
+    SALIENCY --> PADDING
+    EDGE --> PADDING
+    GRABCUT --> PADDING
+    DETR_S --> SELECTOR
+    RTDETR_S --> SELECTOR
+    YOLO_S --> SELECTOR
+    RFDETR_S --> SELECTOR
+    SELECTOR --> PADDING
+
+    PADDING --> ASPECT
+    ASPECT --> CROPSAVE
+    ASPECT --> VIZCROP
+
+    %% Batch Object Flow
+    LOADER --> DETR_B
+    LOADER --> RTDETR_B
+    LOADER --> YOLO_B
+    LOADER --> RFDETR_B
+
+    DETR_B --> BATCHCROP
+    RTDETR_B --> BATCHCROP
+    YOLO_B --> BATCHCROP
+    RFDETR_B --> BATCHCROP
+    BATCHCROP --> VIZDETECT
+
+    %% Dependencies
     CONTOUR --> CV2
     SALIENCY --> CV2
     EDGE --> CV2
     GRABCUT --> CV2
+    LOADER --> PIL
+    LOADER --> CV2
 
-    DETR --> TORCH
-    DETR --> TRANS
-    RTDETR --> TORCH
-    RTDETR --> TRANS
-    YOLO --> TORCH
-    YOLO --> ULTRA
-    RFDETR --> TORCH
-    RFDETR --> RFLIB
+    DETR_S --> TORCH
+    DETR_S --> TRANS
+    DETR_B --> TORCH
+    DETR_B --> TRANS
 
-    CROPPER --> PIL
-    CROPPER --> CV2
+    RTDETR_S --> TORCH
+    RTDETR_S --> TRANS
+    RTDETR_B --> TORCH
+    RTDETR_B --> TRANS
 
-    %% Processing Pipeline
-    INPUT --> DETECT
-    DETECT --> BOUNDS
-    BOUNDS --> CROP
-    CROP --> VIZ
-    VIZ --> OUTPUT
+    YOLO_S --> TORCH
+    YOLO_S --> ULTRA
+    YOLO_B --> TORCH
+    YOLO_B --> ULTRA
 
-    %% Batch Processing
-    CLI --> BATCH
-    BATCH --> MULTI
-    MULTI --> FOLDER
+    RFDETR_S --> TORCH
+    RFDETR_S --> RFLIB
+    RFDETR_B --> TORCH
+    RFDETR_B --> RFLIB
+
+    %% GPU Acceleration
+    TORCH --> GPU
+    TORCH --> CPU
 
     %% Styling
     classDef entryPoint fill:#e1f5ff,stroke:#01579b,stroke-width:2px
     classDef core fill:#fff3e0,stroke:#e65100,stroke-width:2px
     classDef cvMethod fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    classDef aiMethod fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef aiSingle fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef aiBatch fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
     classDef dependency fill:#fce4ec,stroke:#880e4f,stroke-width:2px
     classDef config fill:#fff9c4,stroke:#f57f17,stroke-width:2px
-    classDef pipeline fill:#e0f2f1,stroke:#004d40,stroke-width:2px
-    classDef batch fill:#ede7f6,stroke:#311b92,stroke-width:2px
+    classDef gpu fill:#e3f2fd,stroke:#0d47a1,stroke-width:2px
 
     class CLI,WEB,API entryPoint
-    class CROPPER,LOADER,PROCESSOR core
+    class LOADER,SELECTOR,PADDING,ASPECT,CROPSAVE,VIZCROP,VIZDETECT core
     class CONTOUR,SALIENCY,EDGE,GRABCUT cvMethod
-    class DETR,RTDETR,YOLO,RFDETR aiMethod
+    class DETR_S,RTDETR_S,YOLO_S,RFDETR_S aiSingle
+    class DETR_B,RTDETR_B,YOLO_B,RFDETR_B,BATCHCROP aiBatch
     class CV2,PIL,TORCH,TRANS,ULTRA,RFLIB dependency
     class CONFIG config
-    class INPUT,DETECT,BOUNDS,CROP,VIZ,OUTPUT pipeline
-    class BATCH,MULTI,FOLDER batch
+    class GPU,CPU gpu
 ```
 
-The architecture diagram shows how the three entry points (CLI, React Web UI, FastAPI) interface with the core ImageCropper engine, which supports 8 different detection methods (4 computer vision, 4 AI/ML) through a unified processing pipeline. The system includes batch processing capabilities and integrates with multiple external dependencies for maximum flexibility.
+The architecture diagram shows how the three entry points (CLI, React Web UI, FastAPI) interface with the core ImageCropper engine, which supports 8 different detection methods (4 computer vision, 4 AI/ML). Each AI/ML method has both single-object and batch-processing variants. The system leverages NVIDIA CUDA GPU acceleration with automatic CPU fallback, and includes comprehensive image processing utilities (padding, aspect ratio adjustment, visualization) for maximum flexibility.
 
 ## Quick Start
 
