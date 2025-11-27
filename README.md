@@ -1,5 +1,6 @@
-# AI Image Cropper
+# AI Image Cropper Version 2.0
 
+[![Build Status](https://img.shields.io/github/actions/workflow/status/garystafford/ai-image-cropper-v2/ci.yml?branch=main&style=flat-square)](https://github.com/garystafford/ai-image-cropper-v2/actions)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
