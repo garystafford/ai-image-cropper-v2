@@ -38,6 +38,11 @@ Intelligent image cropping tool with multiple detection methods including You On
 ## Processing Flow
 
 ```mermaid
+---
+config:
+  theme: neutral
+  look: neo
+---
 flowchart LR
     subgraph Input["User Input"]
         UI[Web UI]
@@ -93,13 +98,6 @@ flowchart LR
     CROP --> API
     VIZ --> UI
     META --> API
-
-    style Input fill:#e1f5ff,stroke:#01579b,stroke-width:2px
-    style Load fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    style Detect fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
-    style Compute fill:#e3f2fd,stroke:#0d47a1,stroke-width:2px
-    style Process fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    style Output fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
 ```
 
 The processing flow shows how user input (Web UI, CLI, or REST API) flows through image loading, object detection (using either computer vision or AI models with GPU/CPU acceleration), post-processing (padding and aspect ratio adjustment), and finally produces cropped images, visualizations, and metadata.
