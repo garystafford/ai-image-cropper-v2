@@ -337,7 +337,6 @@ async def process_image(
         vis_image = cropper.visualize_detections(
             detections_for_viz, selected_detection_index, bounds
         )
-        vis_image_rgb = cv2.cvtColor(vis_image, cv2.COLOR_BGR2RGB)
 
         # Save visualization
         vis_path = OUTPUT_DIR / f"{file_id}_vis.jpg"
