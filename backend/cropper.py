@@ -46,23 +46,17 @@ logger = logging.getLogger(__name__)
 
 # Suppress RF-DETR logging messages
 # This suppresses the "Model is not optimized for inference" message
-logging.getLogger('rfdetr.detr').setLevel(logging.ERROR)
+logging.getLogger("rfdetr.detr").setLevel(logging.ERROR)
 
 # Suppress TF32 deprecation warnings from dependencies
 # Dependencies (transformers, accelerate, ultralytics) use the old TF32 API
 # but this is an internal dependency issue, not our code
-warnings.filterwarnings(
-    'ignore',
-    message='.*allow_tf32.*',
-    category=UserWarning
-)
+warnings.filterwarnings("ignore", message=".*allow_tf32.*", category=UserWarning)
 
 # Suppress torch.meshgrid indexing deprecation warning
 # This is triggered internally by PyTorch dependencies
 warnings.filterwarnings(
-    'ignore',
-    message='.*torch.meshgrid.*indexing argument.*',
-    category=UserWarning
+    "ignore", message=".*torch.meshgrid.*indexing argument.*", category=UserWarning
 )
 
 # Optional deep learning imports

@@ -89,19 +89,23 @@ def _build_info_header(cropper: ImageCropper, method: str) -> List[str]:
     from backend.config import YOLO_MODEL_PATH, RFDETR_MODEL_PATH
 
     if method == "yolo" and not YOLO_MODEL_PATH.exists():
-        info_lines.extend([
-            "",
-            "⚠️  FIRST-TIME SETUP: Downloading YOLO model (~300MB)...",
-            "This may take 2-5 minutes. Please wait...",
-            ""
-        ])
+        info_lines.extend(
+            [
+                "",
+                "⚠️  FIRST-TIME SETUP: Downloading YOLO model (~300MB)...",
+                "This may take 2-5 minutes. Please wait...",
+                "",
+            ]
+        )
     elif method == "rf-detr" and not RFDETR_MODEL_PATH.exists():
-        info_lines.extend([
-            "",
-            "⚠️  FIRST-TIME SETUP: Downloading RF-DETR model (~1.4GB)...",
-            "This may take 5-10 minutes. Please wait...",
-            ""
-        ])
+        info_lines.extend(
+            [
+                "",
+                "⚠️  FIRST-TIME SETUP: Downloading RF-DETR model (~1.4GB)...",
+                "This may take 5-10 minutes. Please wait...",
+                "",
+            ]
+        )
     # Note: DETR/RT-DETR download to HuggingFace cache on first use
     # We don't show a warning since we can't easily check if they're already cached
 
@@ -330,7 +334,9 @@ async def process_image(
 
         # Create visualization
         detections_for_viz = all_detections if all_detections else None
-        vis_image = cropper.visualize_detections(detections_for_viz, selected_detection_index, bounds)
+        vis_image = cropper.visualize_detections(
+            detections_for_viz, selected_detection_index, bounds
+        )
         vis_image_rgb = cv2.cvtColor(vis_image, cv2.COLOR_BGR2RGB)
 
         # Save visualization
