@@ -4,10 +4,15 @@ version = "1.0.0"
 description = "Intelligent image cropping tool with multiple detection methods"
 readme = "README.md"
 requires-python = ">=3.12"
-authors = [
-    {name = "Gary A. Stafford"}
+authors = [{ name = "Gary A. Stafford" }]
+keywords = [
+    "image-processing",
+    "cropping",
+    "yolo",
+    "detr",
+    "computer-vision",
+    "ai",
 ]
-keywords = ["image-processing", "cropping", "yolo", "detr", "computer-vision", "ai"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -55,11 +60,12 @@ crop-cli = "backend.cropper:main"
 [[tool.uv.index]]
 name = "pytorch-cu121"
 url = "https://download.pytorch.org/whl/cu121"
-explicit = true  # Only use for packages explicitly configured
+explicit = true                                # Only use for packages explicitly configured
 
 [tool.uv.sources]
-torch = { index = "pytorch-cu121" }
-torchvision = { index = "pytorch-cu121" }
+# Use CUDA version on Linux/Windows, fallback to PyPI on macOS
+torch = { index = "pytorch-cu121", marker = "sys_platform == 'linux' or sys_platform == 'win32'" }
+torchvision = { index = "pytorch-cu121", marker = "sys_platform == 'linux' or sys_platform == 'win32'" }
 
 [build-system]
 requires = ["hatchling"]
