@@ -1,0 +1,31 @@
+/* Custom scrollbar styling for log output */
+.log-output::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.log-output::-webkit-scrollbar-track {
+  background: #f9f9f9;
+  border-radius: 4px;
+}
+
+.log-output::-webkit-scrollbar-thumb {
+  background: #aab7b8;
+  border-radius: 4px;
+  border: 2px solid #f9f9f9;
+}
+
+.log-output::-webkit-scrollbar-thumb:hover {
+  background: #8a9a9b;
+}
+
+/* Selection styling for better readability */
+.log-output pre::selection {
+  background-color: #007dbc;
+  color: #ffffff;
+}
+
+.log-output pre::-moz-selection {
+  background-color: #007dbc;
+  color: #ffffff;
+}

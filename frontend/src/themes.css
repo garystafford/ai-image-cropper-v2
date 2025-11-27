@@ -1,0 +1,145 @@
+/* Dark theme overrides for Cloudscape Design System */
+
+/* Light theme (default) - no overrides needed as Cloudscape handles this */
+
+/* Dark theme customizations using Cloudscape's built-in dark mode */
+.awsui-dark-mode {
+  background-color: #16191f !important;
+}
+
+/* Additional dark theme customizations */
+html[data-theme="dark"] {
+  /* Override Cloudscape variables for dark theme */
+  --color-background-layout-main: #16191f;
+  --color-background-container-content: #232f3e;
+  --color-background-container-header: #2a3441;
+  --color-text-body-default: #ffffff;
+  --color-text-heading-default: #ffffff;
+  --color-text-label: #ffffff;
+  --color-text-body-secondary: #adb5bd;
+  --color-border-container-top: #414d5c;
+  --color-border-divider-default: #414d5c;
+  --color-background-input-default: #232f3e;
+  --color-background-button-primary-default: #0972d3;
+  --color-background-button-primary-hover: #0258a3;
+  --color-background-code-block: #16191f;
+  --color-text-code-block: #00ff41;
+}
+
+/* Ensure all Cloudscape components respect the theme */
+html[data-theme="dark"] .awsui {
+  background-color: var(--color-background-layout-main);
+  color: var(--color-text-body-default);
+}
+
+html[data-theme="dark"] .awsui-context-content-header {
+  background-color: var(--color-background-container-header);
+  border-color: var(--color-border-container-top);
+}
+
+html[data-theme="dark"] .awsui-context-content-header h1,
+html[data-theme="dark"] .awsui-context-content-header h2,
+html[data-theme="dark"] .awsui-context-content-header h3 {
+  color: var(--color-text-heading-default);
+}
+
+/* Custom styling for our CLI command display in dark mode */
+html[data-theme="dark"] .cli-command-container {
+  background-color: #16191f !important;
+  border-color: #414d5c !important;
+}
+
+/* CLI command text - light theme (green on dark background) */
+.cli-command-text {
+  color: #00ff41;
+}
+
+html[data-theme="dark"] .cli-command-text {
+  color: #00ff41 !important;
+}
+
+/* Processing output containers - theme aware */
+.processing-output-container {
+  background-color: #e9ecef;
+  border-radius: 4px;
+}
+
+html[data-theme="dark"] .processing-output-container {
+  background-color: #16191f;
+}
+
+/* Processing output text - theme aware */
+.processing-output-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #212529;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: Monaco, Menlo, "Ubuntu Mono", Consolas, monospace;
+}
+
+html[data-theme="dark"] .processing-output-text {
+  color: #e0e0e0;
+}
+
+/* Result output text (smaller font for individual results) */
+.result-output-text {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #212529;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: Monaco, Menlo, "Ubuntu Mono", Consolas, monospace;
+}
+
+html[data-theme="dark"] .result-output-text {
+  color: #e0e0e0;
+}
+
+/* Example code block - theme aware */
+.example-code-block {
+  font-size: 12px;
+  background-color: #e9ecef;
+  color: #212529;
+  padding: 8px;
+  border-radius: 4px;
+  font-family: Monaco, Menlo, "Ubuntu Mono", Consolas, monospace;
+}
+
+html[data-theme="dark"] .example-code-block {
+  background-color: #16191f;
+  color: #e0e0e0;
+}
+
+/* Navigation bar dark theme */
+html[data-theme="dark"] .awsui-context-top-navigation {
+  background-color: #232f3e;
+  border-bottom-color: #414d5c;
+}
+
+/* Fix Processing Information text visibility in dark mode */
+html[data-theme="dark"] .awsui-form-field-label,
+html[data-theme="dark"] .awsui-form-field-description,
+html[data-theme="dark"] .awsui-alert-content,
+html[data-theme="dark"] .awsui-alert-message,
+html[data-theme="dark"] .awsui-box-content,
+html[data-theme="dark"] .awsui-container-content,
+html[data-theme="dark"] .awsui-expandable-section-content {
+  color: #ffffff !important;
+}
+
+/* Ensure all text elements have proper contrast */
+.awsui-dark-mode * {
+  color: #ffffff;
+}
+
+.awsui-dark-mode .awsui-form-field-label,
+.awsui-dark-mode .awsui-form-field-description,
+.awsui-dark-mode .awsui-alert-content,
+.awsui-dark-mode .awsui-alert-message,
+.awsui-dark-mode .awsui-box-content,
+.awsui-dark-mode .awsui-container-content {
+  color: #ffffff !important;
+}
