@@ -29,10 +29,9 @@ dependencies = [
     "uvicorn>=0.38.0",
     "python-multipart>=0.0.20",
     "rfdetr>=1.3.0",
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
 ]
-# Note: torch is installed separately to allow GPU or CPU choice
-# GPU: uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-# CPU: uv pip install torch torchvision
 
 [project.urls]
 Homepage = "https://github.com/garystafford/image-cropper"
@@ -52,6 +51,15 @@ dev = [
 
 [project.scripts]
 crop-cli = "backend.cropper:main"
+
+[[tool.uv.index]]
+name = "pytorch-cu121"
+url = "https://download.pytorch.org/whl/cu121"
+explicit = true  # Only use for packages explicitly configured
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu121" }
+torchvision = { index = "pytorch-cu121" }
 
 [build-system]
 requires = ["hatchling"]

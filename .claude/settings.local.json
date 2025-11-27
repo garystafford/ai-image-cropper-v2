@@ -11,7 +11,10 @@
       "Bash(pip install:*)",
       "Bash(.venv/Scripts/python.exe -m pip:*)",
       "Bash(.venv/Scripts/python.exe:*)",
-      "Bash(uv sync:*)"
+      "Bash(uv sync:*)",
+      "Bash(del uv.lock)",
+      "Bash(uv lock:*)",
+      "Bash(.venvScriptspython.exe test_gpu.py)"
     ],
     "deny": [],
     "ask": []

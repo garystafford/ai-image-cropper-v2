@@ -189,7 +189,9 @@ The architecture diagram shows how the three entry points (CLI, React Web UI, Fa
 
 ## Quick Start
 
-**Prerequisites:** NVIDIA GPU, [CUDA drivers](https://www.nvidia.com/Download/index.aspx), Python 3.12+, [uv package manager](https://docs.astral.sh/uv/)
+### NVIDIA GPU-based Installation
+
+**Prerequisites:** NVIDIA GPU with [CUDA 12.1 drivers](https://www.nvidia.com/Download/index.aspx), Python 3.12+, [uv package manager](https://docs.astral.sh/uv/)
 
 ```bash
 # 1. Install uv (if not installed)
@@ -198,16 +200,12 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 # macOS/Linux:
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# 2. Clone and install dependencies
+# 2. Clone and install dependencies (includes GPU-enabled PyTorch)
 git clone https://github.com/garystafford/ai-image-cropper-v2.git
 cd ai-image-cropper-v2
 uv sync
 
-# 3. Install GPU-enabled PyTorch (CRITICAL - do this after EVERY uv sync)
-uv pip uninstall torch torchvision
-uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-
-# 4. Source the Environment and Test for GPU
+# 3. Test GPU detection
 # Windows:
 .venv\Scripts\activate
 python test_gpu.py
@@ -216,24 +214,25 @@ python test_gpu.py
 source .venv/bin/activate
 python test_gpu.py
 
-# 5. Run detection
+# 4. Run detection
 python -m backend.cropper sample_images/sample_image_00001.jpg --method rf-detr
 ```
 
-**Note:** On first run, AI models automatically download (~200MB-1.4GB depending on method).
+**Note:** On first run, AI models automatically download (~200MB-1.4GB depending on method). PyTorch with CUDA support is automatically installed via the CUDA repository configured in `pyproject.toml`.
 
-## ⚠️ CRITICAL: GPU Support
+### CPU-Only Installation (No GPU)
 
-**IMPORTANT:** After running `uv sync` (or any command that updates dependencies), you MUST reinstall PyTorch with CUDA support:
+If you don't have an NVIDIA GPU, you can manually install the CPU-only version after running `uv sync`:
 
 ```bash
-uv pip uninstall torch torchvision
-uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+# First run normal sync
+uv sync
+
+# Then override with CPU-only PyTorch
+uv pip install --force-reinstall torch torchvision --index-url https://download.pytorch.org/whl/cpu
 ```
 
-**Why?** The `uv.lock` file contains torch as a transitive dependency (required by rfdetr, ultralytics, etc.) and defaults to the CPU version. Running `uv sync` will reinstall the CPU version, breaking GPU support.
-
-**To avoid this issue:** Only run `uv sync` when absolutely necessary (e.g., adding new dependencies). For day-to-day usage, your environment is already set up.
+**Note:** CPU inference will be significantly slower (~3-5x) than GPU-accelerated inference.
 
 ## Web UI (optional)
 
