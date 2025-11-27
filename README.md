@@ -30,6 +30,8 @@ Intelligent image cropping tool with multiple detection methods including You On
 - 🖼️ **Multiple Formats**: JPEG, PNG, WebP support
 - 🌐 **Web UI (User Interface)**: Modern React interface with AWS Cloudscape Design
 - ⌨️ **CLI (Command-Line Interface)**: Full command-line interface for automation
+- 🖥️ **Cross-Platform**: Windows, macOS, and Linux support
+- ⚡ **GPU Acceleration**: NVIDIA CUDA GPU acceleration or CPU fallback
 
 ## Architecture
 
