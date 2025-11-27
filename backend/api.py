@@ -401,10 +401,10 @@ async def batch_crop(
     """
     logger.info(f"Batch cropping with method: {method}")
 
-    if method not in ["yolo", "detr", "rt-detr"]:
+    if method not in ["yolo", "detr", "rt-detr", "rf-detr"]:
         raise HTTPException(
             status_code=400,
-            detail="Batch crop only works with YOLO, DETR, or RT-DETR detection methods",
+            detail="Batch crop only works with YOLO, DETR, RT-DETR, or RF-DETR detection methods",
         )
 
     # Validate file extension
@@ -571,10 +571,10 @@ async def cli_process_image(
 
         # Handle batch crop mode
         if batch_crop:
-            if method not in ["yolo", "detr", "rt-detr"]:
+            if method not in ["yolo", "detr", "rt-detr", "rf-detr"]:
                 raise HTTPException(
                     status_code=400,
-                    detail="Batch crop only works with YOLO, DETR, or RT-DETR methods",
+                    detail="Batch crop only works with YOLO, DETR, RT-DETR, or RF-DETR methods",
                 )
 
             output_lines.append(f"Batch cropping all objects using {method} method...")

@@ -1490,9 +1490,9 @@ Examples:
         sys.exit(1)
 
     # Validate batch crop requirements
-    if args.batch_crop and args.method not in ["yolo", "detr", "rt-detr"]:
+    if args.batch_crop and args.method not in ["yolo", "detr", "rt-detr", "rf-detr"]:
         print(
-            "ERROR: Batch crop only works with YOLO, DETR, or RT-DETR methods."
+            "ERROR: Batch crop only works with YOLO, DETR, RT-DETR, or RF-DETR methods."
         )
         sys.exit(1)
 

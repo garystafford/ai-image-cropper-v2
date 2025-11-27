@@ -194,8 +194,8 @@ function App() {
       return
     }
 
-    if (!['yolo', 'detr', 'rt-detr'].includes(method.value)) {
-      setErrorMessage('Batch crop only works with YOLO, DETR, or RT-DETR methods.')
+    if (!['yolo', 'detr', 'rt-detr', 'rf-detr'].includes(method.value)) {
+      setErrorMessage('Batch crop only works with YOLO, DETR, RT-DETR, or RF-DETR methods.')
       return
     }
 
