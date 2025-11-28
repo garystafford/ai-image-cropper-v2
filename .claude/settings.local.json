@@ -31,7 +31,12 @@
       "Bash(docker volume:*)",
       "Bash(docker run:*)",
       "Bash(docker-compose build:*)",
-      "Bash(docker:*)"
+      "Bash(docker:*)",
+      "Bash(git tag:*)",
+      "Bash(git push:*)",
+      "Bash(brew install:*)",
+      "Bash(gh --version)",
+      "Bash(gh:*)"
     ],
     "deny": [],
     "ask": []

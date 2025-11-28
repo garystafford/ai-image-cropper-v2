@@ -201,7 +201,7 @@ options:
   --threshold           Threshold value for contour detection (default: 240)
   --visualize           Display detection visualization window
   --crop-output         Save cropped image to specified path
-  --batch-crop          Crop all detected objects individually (YOLO/RT-DETR/DETR only)
+  --batch-crop          Crop all detected objects individually (YOLO/RT-DETR/DETR/RF-DETR)
   --batch-output-dir    Output directory for batch crop (default: cropped_images)
   --image-quality       JPEG quality for saved images (1-100, default: 95)
   --debug               Save debug images during processing
@@ -248,8 +248,6 @@ The React UI provides a modern, professional interface with AWS Cloudscape Desig
 3. View real-time processing with visual feedback
 4. Download individual crops or batch process multiple objects
 5. See detailed processing information and statistics
-
-For detailed React UI documentation, see [frontend/README.md](frontend/README.md).
 
 #### Production Build
 
@@ -335,7 +333,7 @@ SERVER_PORT = 7860
 - **RF-DETR** provides highly accurate detection
 - **DETR** provides detailed object detection but is slower than YOLO, RT-DETR, and RF-DETR
 - For best results, use padding of 5-10%
-- Batch mode works only with YOLO, RT-DETR, and DETR methods
+- Batch mode works only with YOLO, RT-DETR, DETR, and RF-DETR methods
 - Common detectable objects: person, car, couch, chair, dog, cat, bottle, laptop, bicycle, etc.
 - Use `--visualize` in CLI to preview detection before cropping
 
