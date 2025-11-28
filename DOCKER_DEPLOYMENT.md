@@ -264,6 +264,88 @@ docker network inspect image-cropper_app-network
 docker system prune -a
 ```
 
+### RF-DETR Performance Issues and Model Selection
+
+#### Problem: "Error processing image" or Container OOM Kills (Exit Code 137)
+
+If you're experiencing image processing errors or seeing containers repeatedly restart with exit code 137, this is typically an **Out of Memory (OOM)** issue, especially when using RF-DETR on CPU.
+
+**Check for OOM kills:**
+
+```bash
+docker service ps image-cropper_backend --no-trunc --format "table {{.ID}}\t{{.CurrentState}}\t{{.Error}}"
+```
+
+If you see `"task: non-zero exit (137)"`, the container was killed due to insufficient memory.
+
+**Check Docker Desktop memory allocation:**
+
+```bash
+docker info 2>/dev/null | grep -i "total memory"
+```
+
+#### Model Performance Comparison (CPU)
+
+| Model   | Size   | Speed           | Memory Usage | Accuracy  | Recommendation     |
+| ------- | ------ | --------------- | ------------ | --------- | ------------------ |
+| YOLO    | 114MB  | Sub-second      | ~2GB         | Excellent | **Best for speed** |
+| RT-DETR | ~200MB | Seconds         | ~3GB         | Excellent | **Best for CPU**   |
+| RF-DETR | 1.5GB  | Several minutes | 6-8GB+       | Excellent | **GPU only**       |
+
+#### Recommended Solutions
+
+##### Option 1: Use RT-DETR (Strongly Recommended for CPU)
+
+RT-DETR provides similar accuracy to RF-DETR with much better CPU performance:
+
+1. Access the UI at <http://localhost:8080>
+2. Select **RT-DETR** from the "Detection Method" dropdown
+3. Process images normally
+
+RT-DETR is already cached in the models volume and works excellently on CPU.
+
+##### Option 2: Use YOLO (Fastest)
+
+For maximum speed on CPU:
+
+1. Select **YOLO** from the dropdown
+2. Adjust confidence threshold as needed
+3. Excellent accuracy for most use cases
+
+##### Option 3: Increase Docker Desktop Memory (For RF-DETR)
+
+If you must use RF-DETR on CPU:
+
+1. Open Docker Desktop → Settings (⚙️) → Resources → Advanced
+2. Increase Memory to at least **12GB** (16GB recommended)
+3. Click "Apply & Restart"
+4. Wait for Docker to restart
+5. Redeploy the stack:
+
+```bash
+# Update docker-compose.yml memory limits to match your allocation
+# Change line 38: memory: 12G
+docker stack deploy -c docker-compose.yml image-cropper
+```
+
+##### Option 4: Deploy on GPU-Enabled Host (Best for RF-DETR)
+
+For production use of RF-DETR, deploy on a host with NVIDIA GPU:
+
+- Install nvidia-container-toolkit
+- Update docker-compose.yml to include GPU reservations
+- RF-DETR will run in seconds instead of minutes
+
+#### Verify Model Cache
+
+Check which models are cached:
+
+```bash
+docker run --rm -v image-cropper_backend-models:/models alpine ls -lh /models
+```
+
+All models persist across container restarts, so they only download once.
+
 ## Recent Updates (v1.0)
 
 ### RF-DETR Batch Crop Support
