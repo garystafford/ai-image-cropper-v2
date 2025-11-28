@@ -433,7 +433,7 @@ ai-image-cropper-v2/
 ├── sample_images/                 # Sample images for testing
 ├── cropped_images/                # Batch crop output (generated)
 ├── pyproject.toml                 # Python project configuration (uv)
-├── .python-version                # Python version (3.13)
+├── .python-version                # Python version (3.12)
 ├── uv.lock                        # Python dependency lock file
 ├── .venv/                         # Virtual environment (created by uv)
 └── README.md                      # This file
@@ -441,7 +441,7 @@ ai-image-cropper-v2/
 
 ## Requirements
 
-- **Python**: 3.13+
+- **Python**: 3.12+
 - **Package Manager**: [uv](https://docs.astral.sh/uv/)
 - **Key Dependencies**:
   - fastapi >= 0.121.0
@@ -454,6 +454,17 @@ ai-image-cropper-v2/
   - pillow >= 10.0.0
 
 See [`pyproject.toml`](pyproject.toml) for complete dependency list.
+
+## Why Python 3.12?
+
+This project uses Python 3.12 to ensure compatibility with PyTorch and CUDA 12.1 for GPU acceleration:
+
+- **CUDA 12.1 Support**: PyTorch with CUDA 12.1 has guaranteed compatibility with Python 3.12 (PyTorch 2.1+)
+- **GPU Acceleration**: Python 3.13 requires PyTorch 2.5+ for CUDA 12.1 support, which has limited availability
+- **Stability**: Python 3.12 provides a stable, well-tested environment for all AI/ML dependencies
+- **Cross-Platform**: Ensures consistency between local development, CI/CD pipelines, and Docker deployments
+
+If you're using CPU-only inference, Python 3.13 will work, but we standardize on 3.12 for consistency across all deployment scenarios.
 
 ## License
 

@@ -1,5 +1,5 @@
 [project]
-name = "ai-image-cropper"
+name = "ai-image-cropper-v2"
 version = "1.0.0"
 description = "Intelligent image cropping tool with multiple detection methods"
 readme = "README.md"
@@ -39,10 +39,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/garystafford/image-cropper"
-Repository = "https://github.com/garystafford/image-cropper"
-Issues = "https://github.com/garystafford/image-cropper/issues"
-Changelog = "https://github.com/garystafford/image-cropper/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/garystafford/ai-image-cropper-v2"
+Repository = "https://github.com/garystafford/ai-image-cropper-v2"
+Issues = "https://github.com/garystafford/ai-image-cropper-v2/issues"
+Changelog = "https://github.com/garystafford/ai-image-cropper-v2/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
