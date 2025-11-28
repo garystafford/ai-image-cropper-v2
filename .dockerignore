@@ -1,0 +1,81 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+venv/
+ENV/
+env/
+.pytest_cache
+.coverage
+htmlcov/
+*.egg-info
+dist/
+build/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+uploads/*
+outputs/*
+cropped_images/*
+250_vehicles_open/
+500_self_driving_car/
+objects/
+performance/
+dogs_raw/
+diagrams/
+
+# Documentation and tests (but keep README.md for build backend)
+CHANGELOG.md
+CONTRIBUTING.md
+LICENSE
+tests/
+DOCKER_DEPLOYMENT.md
+
+# Config files
+.editorconfig
+.coveragerc
+pytest.ini
+.python-version
+.ruff_cache
+
+# Scripts
+*.sh
+test_*.py
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+nginx-lb.conf
+
+# Temporary files
+*.tmp
+*.log
+*.pid
+*.seed
+*.pid.lock
+crop.png

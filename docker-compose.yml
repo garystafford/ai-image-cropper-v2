@@ -1,0 +1,121 @@
+services:
+  backend:
+    image: ai-image-cropper-backend:1.0
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      platforms:
+        - linux/amd64  # x86_64 for CUDA support
+    networks:
+      - app-network
+    environment:
+      - PYTHONUNBUFFERED=1
+      - UPLOADS_DIR=/app/uploads
+      - OUTPUTS_DIR=/app/outputs
+      - CROPPED_DIR=/app/cropped_images
+    volumes:
+      - backend-uploads:/app/uploads
+      - backend-outputs:/app/outputs
+      - backend-cropped:/app/cropped_images
+      - backend-models:/app/backend/models  # Cache ML models to avoid re-downloading
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 5s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 6G  # Fits within Docker Desktop's 7.653GB (use RT-DETR or YOLO for best results)
+        reservations:
+          cpus: '1.0'
+          memory: 3G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 60s  # Reduced frequency
+      timeout: 30s  # Increased timeout for busy CPU
+      retries: 5  # More retries before killing
+      start_period: 120s  # Longer startup grace period
+
+  frontend:
+    image: ai-image-cropper-frontend:1.0
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      platforms:
+        - linux/amd64
+    networks:
+      - app-network
+    depends_on:
+      - backend
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 5s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  # Optional: Nginx reverse proxy/load balancer
+  nginx-lb:
+    image: nginx:alpine
+    networks:
+      - app-network
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx-lb.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+networks:
+  app-network:
+    driver: overlay
+    attachable: true
+
+volumes:
+  backend-uploads:
+    driver: local
+  backend-outputs:
+    driver: local
+  backend-cropped:
+    driver: local
+  backend-models:
+    driver: local

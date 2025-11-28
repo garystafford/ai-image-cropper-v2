@@ -7,6 +7,7 @@ License: MIT
 
 import json
 import logging
+import os
 import uuid
 from pathlib import Path
 from typing import List, Optional
@@ -59,17 +60,18 @@ app.add_middleware(
 )
 
 # Create directories for uploaded and processed images
-UPLOAD_DIR = Path("backend/uploads")
-OUTPUT_DIR = Path("backend/outputs")
-UPLOAD_DIR.mkdir(exist_ok=True)
-OUTPUT_DIR.mkdir(exist_ok=True)
+# Use environment variables if available (for Docker), otherwise use local paths
+UPLOAD_DIR = Path(os.getenv("UPLOADS_DIR", "backend/uploads"))
+OUTPUT_DIR = Path(os.getenv("OUTPUTS_DIR", "backend/outputs"))
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Create models directory for storing YOLO and RF-DETR models
 YOLO_MODEL_DIRECTORY.mkdir(exist_ok=True)
 
 # Mount static directories
-app.mount("/uploads", StaticFiles(directory="backend/uploads"), name="uploads")
-app.mount("/outputs", StaticFiles(directory="backend/outputs"), name="outputs")
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
+app.mount("/outputs", StaticFiles(directory=str(OUTPUT_DIR)), name="outputs")
 
 
 def _build_info_header(cropper: ImageCropper, method: str) -> List[str]:

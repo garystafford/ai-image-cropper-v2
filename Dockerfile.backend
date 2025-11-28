@@ -1,0 +1,49 @@
+# Backend Dockerfile for AI Image Cropper API
+FROM python:3.12-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies for OpenCV and other image processing libraries
+RUN apt-get update && apt-get install -y \
+    libgl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    wget \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv for faster dependency installation
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copy dependency files and README (required by hatchling build backend)
+COPY pyproject.toml uv.lock README.md ./
+
+# Install Python dependencies using uv sync
+# The pyproject.toml is configured to use CUDA for Linux, which is correct for Docker
+RUN uv sync --frozen --no-dev --no-cache
+
+# Create necessary directories at /app level (matches volume mount points)
+RUN mkdir -p uploads outputs cropped_images backend/models
+
+# Copy application code
+COPY backend/ ./backend/
+
+# Expose port
+EXPOSE 8000
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV UPLOADS_DIR=/app/uploads
+ENV OUTPUTS_DIR=/app/outputs
+ENV CROPPED_DIR=/app/cropped_images
+
+# Health check - relaxed for CPU-intensive RF-DETR inference
+HEALTHCHECK --interval=60s --timeout=30s --start-period=120s --retries=5 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Run the application with uv
+CMD ["uv", "run", "uvicorn", "backend.api:app", "--host", "0.0.0.0", "--port", "8000"]
