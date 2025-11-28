@@ -224,7 +224,7 @@ You need to run both the backend API and the frontend development server:
 
 ```bash
 # From project root
-python -m uvicorn backend.api:app --reload
+uvicorn backend.api:app --reload
 ```
 
 The API will start on `http://localhost:8000`
