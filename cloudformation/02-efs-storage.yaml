@@ -1,0 +1,109 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "AI Image Cropper v2 - Shared Storage (Step 2 - EFS File System)"
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ai-image-cropper-v2
+    Description: Project name used for naming resources
+    AllowedPattern: "[a-zA-Z0-9-]+"
+    ConstraintDescription: Must contain only alphanumeric characters and hyphens
+
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues: [dev, staging, prod]
+    Description: Environment name
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID where EFS will be deployed
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: List of subnet IDs for EFS mount targets (minimum 2 subnets in different AZs)
+
+  ECSSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security group ID for ECS tasks that will access EFS
+
+Resources:
+  # ========================================
+  # EFS File System
+  # ========================================
+  EFSFileSystem:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      PerformanceMode: generalPurpose
+      ThroughputMode: bursting
+      Encrypted: true
+      FileSystemTags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-efs-${Environment}"
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  EFSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${ProjectName}-efs-sg-${Environment}"
+      GroupDescription: Security group for EFS mount targets
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 2049
+          ToPort: 2049
+          SourceSecurityGroupId: !Ref ECSSecurityGroupId
+          Description: NFS traffic from ECS tasks
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-efs-sg-${Environment}"
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  EFSMountTarget1:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref EFSFileSystem
+      SubnetId: !Select [0, !Ref SubnetIds]
+      SecurityGroups:
+        - !Ref EFSSecurityGroup
+
+  EFSMountTarget2:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref EFSFileSystem
+      SubnetId: !Select [1, !Ref SubnetIds]
+      SecurityGroups:
+        - !Ref EFSSecurityGroup
+
+  EFSMountTarget3:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref EFSFileSystem
+      SubnetId: !Select [2, !Ref SubnetIds]
+      SecurityGroups:
+        - !Ref EFSSecurityGroup
+
+# Note: Creating mount targets for all 3 subnets to ensure ECS tasks
+# can access EFS regardless of which subnet they're launched in
+
+# ========================================
+# Outputs
+# ========================================
+Outputs:
+  EFSFileSystemId:
+    Description: ID of the EFS file system
+    Value: !Ref EFSFileSystem
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-EFS-ID"
+
+  EFSSecurityGroupId:
+    Description: ID of the EFS security group
+    Value: !Ref EFSSecurityGroup
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-EFS-SG"

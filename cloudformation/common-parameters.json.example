@@ -1,0 +1,38 @@
+[
+  {
+    "ParameterKey": "VpcId",
+    "ParameterValue": "vpc-xxxxxxxx"
+  },
+  {
+    "ParameterKey": "SubnetIds",
+    "ParameterValue": "subnet-xxxxxxxx,subnet-yyyyyyyy,subnet-zzzzzzzz"
+  },
+  {
+    "ParameterKey": "ECSSecurityGroupId",
+    "ParameterValue": "sg-xxxxxxxx"
+  },
+  {
+    "ParameterKey": "CertificateArn",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "FrontendImageTag",
+    "ParameterValue": "1.0.0"
+  },
+  {
+    "ParameterKey": "BackendImageTag",
+    "ParameterValue": "1.0.0"
+  },
+  {
+    "ParameterKey": "TaskCpu",
+    "ParameterValue": "2048"
+  },
+  {
+    "ParameterKey": "TaskMemory",
+    "ParameterValue": "4096"
+  },
+  {
+    "ParameterKey": "DesiredCount",
+    "ParameterValue": "1"
+  }
+]

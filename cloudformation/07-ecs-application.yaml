@@ -1,0 +1,215 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "AI Image Cropper v2 - ECS Application (Step 5 - ECS Cluster and Service)"
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ai-image-cropper-v2
+    Description: Project name used for naming resources
+    AllowedPattern: "[a-zA-Z0-9-]+"
+    ConstraintDescription: Must contain only alphanumeric characters and hyphens
+
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues: [dev, staging, prod]
+    Description: Environment name
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: List of subnet IDs for ECS tasks
+
+  ECSSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Existing security group ID for ECS tasks
+
+  FrontendImageTag:
+    Type: String
+    Default: "1.0.0"
+    Description: Tag for frontend Docker image
+
+  BackendImageTag:
+    Type: String
+    Default: "1.0.0"
+    Description: Tag for backend Docker image
+
+  TaskCpu:
+    Type: String
+    Default: "2048"
+    AllowedValues: ["256", "512", "1024", "2048", "4096"]
+    Description: CPU units for ECS task
+
+  TaskMemory:
+    Type: String
+    Default: "4096"
+    AllowedValues:
+      ["512", "1024", "2048", "3072", "4096", "5120", "6144", "7168", "8192"]
+    Description: Memory (MB) for ECS task
+
+  DesiredCount:
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 10
+    Description: Desired number of ECS tasks
+
+  BackendAwsRegion:
+    Type: String
+    Default: us-east-1
+    Description: AWS region for backend application configuration
+
+Resources:
+  # ========================================
+  # CloudWatch Log Group
+  # ========================================
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/ecs/${ProjectName}-${Environment}"
+      RetentionInDays: 30
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ========================================
+  # ECS Resources
+  # ========================================
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub "${ProjectName}-cluster-${Environment}"
+      CapacityProviders:
+        - FARGATE
+        - FARGATE_SPOT
+      DefaultCapacityProviderStrategy:
+        - CapacityProvider: FARGATE
+          Weight: 1
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub "${ProjectName}-task-${Environment}"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
+      ExecutionRoleArn:
+        Fn::ImportValue: !Sub "${ProjectName}-${Environment}-Task-Execution-Role-ARN"
+      TaskRoleArn:
+        Fn::ImportValue: !Sub "${ProjectName}-${Environment}-Task-Role-ARN"
+      Volumes:
+        - Name: efs-storage
+          EFSVolumeConfiguration:
+            FilesystemId:
+              Fn::ImportValue: !Sub "${ProjectName}-${Environment}-EFS-ID"
+            TransitEncryption: ENABLED
+      ContainerDefinitions:
+        - Name: frontend
+          Image: !Sub
+            - "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${RepoName}:${ImageTag}"
+            - RepoName:
+                Fn::ImportValue: !Sub "${ProjectName}-${Environment}-Frontend-Repo-Name"
+              ImageTag: !Ref FrontendImageTag
+          PortMappings:
+            - ContainerPort: 80
+              Protocol: tcp
+          Essential: true
+          Environment:
+            - Name: BACKEND_HOST
+              Value: "127.0.0.1"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: frontend
+        - Name: backend
+          Image: !Sub
+            - "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${RepoName}:${ImageTag}"
+            - RepoName:
+                Fn::ImportValue: !Sub "${ProjectName}-${Environment}-Backend-Repo-Name"
+              ImageTag: !Ref BackendImageTag
+          PortMappings:
+            - ContainerPort: 8000
+              Protocol: tcp
+          Essential: true
+          MountPoints:
+            - SourceVolume: efs-storage
+              ContainerPath: /app/data
+              ReadOnly: false
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: backend
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  ECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: !Sub "${ProjectName}-service-${Environment}"
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref TaskDefinition
+      DesiredCount: !Ref DesiredCount
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets: !Ref SubnetIds
+          SecurityGroups:
+            - !Ref ECSSecurityGroupId
+          AssignPublicIp: ENABLED
+      LoadBalancers:
+        - TargetGroupArn:
+            Fn::ImportValue: !Sub "${ProjectName}-${Environment}-TG-ARN"
+          ContainerName: frontend
+          ContainerPort: 80
+      HealthCheckGracePeriodSeconds: 60
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+        DeploymentCircuitBreaker:
+          Enable: true
+          Rollback: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+# ========================================
+# Outputs
+# ========================================
+Outputs:
+  ECSClusterName:
+    Description: Name of the ECS cluster
+    Value: !Ref ECSCluster
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-ECS-Cluster"
+
+  ECSServiceName:
+    Description: Name of the ECS service
+    Value: !GetAtt ECSService.Name
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-ECS-Service"
+
+  LogGroupName:
+    Description: Name of the CloudWatch log group
+    Value: !Ref LogGroup
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-Log-Group"

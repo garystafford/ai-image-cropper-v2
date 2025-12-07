@@ -1,0 +1,114 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "AI Image Cropper v2 - ECR Repositories (Step 1 - Container Registry)"
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ai-image-cropper-v2
+    Description: Project name used for naming resources
+    AllowedPattern: "[a-zA-Z0-9-]+"
+    ConstraintDescription: Must contain only alphanumeric characters and hyphens
+
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues: [dev, staging, prod]
+    Description: Environment name
+
+Resources:
+  # ========================================
+  # ECR Repositories
+  # ========================================
+  FrontendECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub "${ProjectName}-frontend"
+      ImageTagMutability: MUTABLE
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep last 10 images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10
+                },
+                "action": {
+                  "type": "expire"
+                }
+              }
+            ]
+          }
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Component
+          Value: frontend
+
+  BackendECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub "${ProjectName}-backend"
+      ImageTagMutability: MUTABLE
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep last 10 images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10
+                },
+                "action": {
+                  "type": "expire"
+                }
+              }
+            ]
+          }
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Component
+          Value: backend
+
+# ========================================
+# Outputs
+# ========================================
+Outputs:
+  FrontendECRRepository:
+    Description: URI of the frontend ECR repository
+    Value: !GetAtt FrontendECRRepository.RepositoryUri
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-Frontend-ECR"
+
+  BackendECRRepository:
+    Description: URI of the backend ECR repository
+    Value: !GetAtt BackendECRRepository.RepositoryUri
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-Backend-ECR"
+
+  FrontendRepositoryName:
+    Description: Name of the frontend ECR repository
+    Value: !Ref FrontendECRRepository
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-Frontend-Repo-Name"
+
+  BackendRepositoryName:
+    Description: Name of the backend ECR repository
+    Value: !Ref BackendECRRepository
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-Backend-Repo-Name"

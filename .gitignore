@@ -408,3 +408,5 @@ frontend/.vite/
 
 sample_image_datesets/
 cropped_images/
+cloudformation/efs-parameters.json
+cloudformation/common-parameters.json

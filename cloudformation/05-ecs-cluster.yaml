@@ -1,0 +1,69 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "AI Image Cropper v2 - ECS Cluster and CloudWatch (Step 3)"
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ai-image-cropper-v2
+    Description: Project name used for naming resources
+    AllowedPattern: "[a-zA-Z0-9-]+"
+    ConstraintDescription: Must contain only alphanumeric characters and hyphens
+
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues: [dev, staging, prod]
+    Description: Environment name
+
+Resources:
+  # ========================================
+  # CloudWatch Log Group
+  # ========================================
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/ecs/${ProjectName}-${Environment}"
+      RetentionInDays: 30
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ========================================
+  # ECS Cluster
+  # ========================================
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub "${ProjectName}-cluster-${Environment}"
+      CapacityProviders:
+        - FARGATE
+        - FARGATE_SPOT
+      DefaultCapacityProviderStrategy:
+        - CapacityProvider: FARGATE
+          Weight: 1
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+# ========================================
+# Outputs
+# ========================================
+Outputs:
+  ECSClusterName:
+    Description: Name of the ECS cluster
+    Value: !Ref ECSCluster
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-ECS-Cluster"
+
+  LogGroupName:
+    Description: Name of the CloudWatch log group
+    Value: !Ref LogGroup
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-Log-Group"

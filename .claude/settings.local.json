@@ -36,7 +36,20 @@
       "Bash(git push:*)",
       "Bash(brew install:*)",
       "Bash(gh --version)",
-      "Bash(gh:*)"
+      "Bash(gh:*)",
+      "Bash(bash -n:*)",
+      "Bash(aws ecs describe-clusters:*)",
+      "Bash(chmod:*)",
+      "Bash(./deploy-cloudformation.sh:*)",
+      "Bash(aws cloudformation update-stack:*)",
+      "Bash(ParameterKey=ProjectName,ParameterValue=ai-image-cropper-v2 )",
+      "Bash(ParameterKey=Environment,ParameterValue=prod )",
+      "Bash(ParameterKey=VpcId,ParameterValue=vpc-3eaeee44 )",
+      "Bash(ParameterKey=SubnetIds,ParameterValue=\"\"subnet-8b770cb5,subnet-43a6610e,subnet-e2ac45ec\"\" )",
+      "Bash(ParameterKey=ECSSecurityGroupId,ParameterValue=sg-0cfbd579298ef530c )",
+      "Bash(aws cloudformation wait:*)",
+      "Bash(aws:*)",
+      "Bash(./update_ecs_task.sh)"
     ],
     "deny": [],
     "ask": []
