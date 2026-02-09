@@ -6,19 +6,19 @@ This guide explains all parameters needed for the AI Image Cropper v2 CloudForma
 
 1. Copy the common parameters file:
 
-```bash
-cd cloudformation
-cp common-parameters.json.example common-parameters.json
-```
+   ```bash
+   cd cloudformation
+   cp common-parameters.json.example common-parameters.json
+   ```
 
 2. Update `common-parameters.json` with your AWS resource IDs (see below)
 
 3. Run deployment:
 
-```bash
-cd ..
-./deploy-cloudformation.sh
-```
+   ```bash
+   cd ..
+   ./deploy-cloudformation.sh
+   ```
 
 The deployment script will automatically extract the relevant parameters for each CloudFormation template from the single `common-parameters.json` file.
 
@@ -142,6 +142,7 @@ Number of ECS task instances to run:
 Here's a complete example configuration file:
 
 **cloudformation/common-parameters.json:**
+
 ```json
 [
   {
@@ -211,7 +212,7 @@ For a first-time deployment, follow this workflow:
 
 1. Create `common-parameters.json` with your AWS resource IDs
 2. Run `./deploy-cloudformation.sh` - This deploys infrastructure (steps 1-5)
-3. Build and push Docker images: `cd cloudformation && ./update_ecs_task.sh`
+3. Build and push Docker images: `./update_ecs_task.sh`
 4. Run `./deploy-cloudformation.sh` again - This deploys the ECS service (step 6)
 
 Alternatively, you can build and push images first, then run the deployment script once.

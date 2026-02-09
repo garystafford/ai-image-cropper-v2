@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2016  # Backticks in single quotes are intentional JMESPath syntax for AWS CLI
 
 set -e  # Exit on error
 
@@ -123,7 +124,7 @@ fi
 
 # Authenticate Docker to ECR
 echo -e "\n${YELLOW}Authenticating Docker to ECR...${NC}"
-aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
+aws ecr get-login-password --region "${REGION}" | docker login --username AWS --password-stdin "${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com"
 
 # Build, tag, and push Backend Docker image
 echo -e "\n${BLUE}Processing Backend Image (tag: ${BACKEND_TAG})${NC}"
@@ -131,11 +132,11 @@ if image_exists_in_ecr "${BACKEND_REPO}" "${BACKEND_TAG}"; then
     echo -e "${GREEN}✓ Backend image ${BACKEND_TAG} already exists in ECR. Skipping build and push.${NC}"
 else
     echo -e "${YELLOW}Building backend image...${NC}"
-    docker build --platform linux/amd64 -t ${BACKEND_REPO}:${BACKEND_TAG} -f Dockerfile.backend .
+    docker build --platform linux/amd64 -t "${BACKEND_REPO}:${BACKEND_TAG}" -f Dockerfile.backend .
     echo -e "${YELLOW}Tagging backend image...${NC}"
-    docker tag ${BACKEND_REPO}:${BACKEND_TAG} ${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${BACKEND_REPO}:${BACKEND_TAG}
+    docker tag "${BACKEND_REPO}:${BACKEND_TAG}" "${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${BACKEND_REPO}:${BACKEND_TAG}"
     echo -e "${YELLOW}Pushing backend image to ECR...${NC}"
-    docker push ${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${BACKEND_REPO}:${BACKEND_TAG}
+    docker push "${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${BACKEND_REPO}:${BACKEND_TAG}"
     echo -e "${GREEN}✓ Backend image pushed successfully${NC}"
 fi
 
@@ -145,11 +146,11 @@ if image_exists_in_ecr "${FRONTEND_REPO}" "${FRONTEND_TAG}"; then
     echo -e "${GREEN}✓ Frontend image ${FRONTEND_TAG} already exists in ECR. Skipping build and push.${NC}"
 else
     echo -e "${YELLOW}Building frontend image...${NC}"
-    docker build --platform linux/amd64 -f Dockerfile.frontend -t ${FRONTEND_REPO}:${FRONTEND_TAG} .
+    docker build --platform linux/amd64 -f Dockerfile.frontend -t "${FRONTEND_REPO}:${FRONTEND_TAG}" .
     echo -e "${YELLOW}Tagging frontend image...${NC}"
-    docker tag ${FRONTEND_REPO}:${FRONTEND_TAG} ${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${FRONTEND_REPO}:${FRONTEND_TAG}
+    docker tag "${FRONTEND_REPO}:${FRONTEND_TAG}" "${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${FRONTEND_REPO}:${FRONTEND_TAG}"
     echo -e "${YELLOW}Pushing frontend image to ECR...${NC}"
-    docker push ${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${FRONTEND_REPO}:${FRONTEND_TAG}
+    docker push "${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${FRONTEND_REPO}:${FRONTEND_TAG}"
     echo -e "${GREEN}✓ Frontend image pushed successfully${NC}"
 fi
 
@@ -219,7 +220,7 @@ EOF
 )
 
 TASK_DEF_ARN=$(aws ecs register-task-definition \
-  --family ${PROJECT_NAME}-task-${ENVIRONMENT} \
+  --family "${PROJECT_NAME}-task-${ENVIRONMENT}" \
   --network-mode awsvpc \
   --requires-compatibilities FARGATE \
   --cpu "${TASK_CPU}" \
@@ -228,7 +229,7 @@ TASK_DEF_ARN=$(aws ecs register-task-definition \
   --task-role-arn "${TASK_ROLE_ARN}" \
   --container-definitions "$CONTAINER_DEFS" \
   --volumes "[{\"name\":\"efs-storage\",\"efsVolumeConfiguration\":{\"fileSystemId\":\"${EFS_ID}\",\"transitEncryption\":\"ENABLED\"}}]" \
-  --region ${REGION} \
+  --region "${REGION}" \
   --query 'taskDefinition.taskDefinitionArn' \
   --output text)
 
@@ -247,21 +248,21 @@ if [[ -n "$SERVICE_NAME" ]]; then
     echo -e "${YELLOW}Cluster: ${CLUSTER}${NC}"
     echo -e "${YELLOW}Service: ${SERVICE_NAME}${NC}"
     aws ecs update-service \
-      --cluster ${CLUSTER} \
-      --service ${SERVICE_NAME} \
-      --task-definition ${TASK_DEF_ARN} \
+      --cluster "${CLUSTER}" \
+      --service "${SERVICE_NAME}" \
+      --task-definition "${TASK_DEF_ARN}" \
       --force-new-deployment \
       --health-check-grace-period-seconds 60 \
-      --region ${REGION} \
+      --region "${REGION}" \
       --query 'service.serviceName' \
       --output text >/dev/null
 
     echo -e "${GREEN}✓ Service update initiated${NC}"
     echo -e "\n${YELLOW}Waiting for service to stabilize (this may take a few minutes)...${NC}"
     if aws ecs wait services-stable \
-      --cluster ${CLUSTER} \
-      --services ${SERVICE_NAME} \
-      --region ${REGION}; then
+      --cluster "${CLUSTER}" \
+      --services "${SERVICE_NAME}" \
+      --region "${REGION}"; then
         echo -e "${GREEN}✓ Service stabilized successfully${NC}"
     else
         echo -e "${YELLOW}⚠ Service stabilization timed out, check manually${NC}"

@@ -91,7 +91,9 @@ aws cloudformation create-stack \
   --parameters \
     ParameterKey=ProjectName,ParameterValue=ai-image-cropper-v2 \
     ParameterKey=Environment,ParameterValue=prod \
-    file://efs-parameters.json \
+    ParameterKey=VpcId,ParameterValue=vpc-xxxxxxxx \
+    ParameterKey=SubnetIds,ParameterValue=subnet-xxx\\,subnet-yyy\\,subnet-zzz \
+    ParameterKey=ECSSecurityGroupId,ParameterValue=sg-xxxxxxxxxxxxxxxxx \
   --region us-east-1
 ```
 

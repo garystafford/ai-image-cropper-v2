@@ -35,45 +35,35 @@ Intelligent image cropping tool with multiple detection methods including You On
 - 🖥️ **Cross-Platform**: Windows, macOS, and Linux support
 - ⚡ **GPU Acceleration**: NVIDIA CUDA GPU acceleration or CPU fallback
 
-## Request/Response Flow
+## Deployment Options
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant UI as Web UI / CLI / API
-    participant Core as ImageCropper Engine
-    participant Detector as Detection Method<br/>(CV or AI Model)
-    participant GPU as GPU/CPU
-    participant Storage as File System
+The application supports three deployment models:
 
-    User->>UI: Upload image + parameters
-    UI->>Core: Load image
-    Core->>Storage: Read image file
-    Storage-->>Core: Image data
-    Core-->>UI: Image loaded
+### Local Development
 
-    UI->>Core: Request detection
-    Core->>Detector: Run detection
+Run the backend and frontend directly on your machine with Python and Node.js. Supports GPU acceleration with NVIDIA CUDA or CPU-only inference. See [Quick Start](#quick-start) below.
 
-    alt AI Model (YOLO/DETR/RT-DETR/RF-DETR)
-        Detector->>GPU: Process on GPU/CPU
-        GPU-->>Detector: Bounding boxes
-    else Computer Vision (Contour/Saliency/Edge)
-        Detector->>Detector: Process locally
-    end
+### Docker Swarm (Self-Hosted)
 
-    Detector-->>Core: Detection results
+Deploy as a multi-service Docker Swarm stack with an nginx load balancer, persistent volumes for ML model caching, and rolling updates. See [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) for the full guide.
 
-    Core->>Core: Add padding
-    Core->>Core: Adjust aspect ratio
-    Core->>Storage: Save cropped image
-    Storage-->>Core: File saved
+### AWS ECS Fargate (Cloud)
 
-    Core-->>UI: Cropped image + visualization + metadata
-    UI-->>User: Display results
+Deploy to AWS using CloudFormation templates that provision ECR repositories, an EFS file system for model storage, an Application Load Balancer with HTTPS, IAM roles, and an ECS Fargate cluster. The deployment is automated via a single script:
+
+```bash
+# 1. Configure parameters
+cp cloudformation/common-parameters.json.example cloudformation/common-parameters.json
+# Edit common-parameters.json with your VPC, subnet, and security group IDs
+
+# 2. Deploy infrastructure
+./deploy-cloudformation.sh
+
+# 3. Build and push Docker images, register task definition, update service
+./update_ecs_task.sh
 ```
 
-The swimlane diagram shows the request/response flow from user input through the system layers: the user interface accepts the request, the ImageCropper engine coordinates processing, detection methods (computer vision or AI models) run on GPU/CPU, and results flow back through the layers to the user.
+See [cloudformation/README.md](cloudformation/README.md) and [cloudformation/PARAMETERS.md](cloudformation/PARAMETERS.md) for full documentation.
 
 ## Quick Start
 
@@ -260,6 +250,46 @@ npm run build
 
 The build output will be in `frontend/dist/` and can be served by any static file server.
 
+## Request/Response Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI as Web UI / CLI / API
+    participant Core as ImageCropper Engine
+    participant Detector as Detection Method<br/>(CV or AI Model)
+    participant GPU as GPU/CPU
+    participant Storage as File System
+
+    User->>UI: Upload image + parameters
+    UI->>Core: Load image
+    Core->>Storage: Read image file
+    Storage-->>Core: Image data
+    Core-->>UI: Image loaded
+
+    UI->>Core: Request detection
+    Core->>Detector: Run detection
+
+    alt AI Model (YOLO/DETR/RT-DETR/RF-DETR)
+        Detector->>GPU: Process on GPU/CPU
+        GPU-->>Detector: Bounding boxes
+    else Computer Vision (Contour/Saliency/Edge)
+        Detector->>Detector: Process locally
+    end
+
+    Detector-->>Core: Detection results
+
+    Core->>Core: Add padding
+    Core->>Core: Adjust aspect ratio
+    Core->>Storage: Save cropped image
+    Storage-->>Core: File saved
+
+    Core-->>UI: Cropped image + visualization + metadata
+    UI-->>User: Display results
+```
+
+The swimlane diagram shows the request/response flow from user input through the system layers: the user interface accepts the request, the ImageCropper engine coordinates processing, detection methods (computer vision or AI models) run on GPU/CPU, and results flow back through the layers to the user.
+
 ## Configuration
 
 ### Dependencies (pyproject.toml)
@@ -380,6 +410,12 @@ uvx ruff format .
 # Remove unused imports with autoflake
 uvx autoflake --remove-all-unused-imports --in-place --recursive backend/
 
+# Lint shell scripts with ShellCheck
+shellcheck *.sh
+
+# Lint Markdown files with markdownlint
+npx markdownlint-cli "**/*.md" --ignore node_modules --ignore frontend/node_modules
+
 # Build package
 uvx hatch build
 ```
@@ -413,6 +449,9 @@ uv python list
 
 ```text
 ai-image-cropper-v2/
+├── .github/
+│   └── workflows/
+│       └── ci.yml                 # CI pipeline (lint, format, build)
 ├── backend/                       # Backend Python application
 │   ├── __init__.py
 │   ├── api.py                     # FastAPI REST API
@@ -432,19 +471,28 @@ ai-image-cropper-v2/
 │   ├── 01-ecr-repositories.yaml   # ECR container registries
 │   ├── 02-efs-storage.yaml        # Elastic File System
 │   ├── 03-load-balancer.yaml      # Application Load Balancer
-│   ├── 04-iam-roles.yaml          # IAM roles for ECS
+│   ├── 04-iam-roles.yaml         # IAM roles for ECS
 │   ├── 05-ecs-cluster.yaml        # ECS Fargate cluster
 │   ├── 06-ecs-service.yaml        # ECS service and task definition
-│   └── common-parameters.json.example  # Example parameters file
+│   ├── 07-ecs-application.yaml    # Alternate combined application template
+│   ├── common-parameters.json.example  # Example parameters file
+│   ├── PARAMETERS.md              # Detailed parameter documentation
+│   └── README.md                  # CloudFormation deployment guide
 ├── sample_images/                 # Sample images for testing
 ├── Dockerfile.backend             # Backend Docker image
 ├── Dockerfile.frontend            # Frontend Docker image
 ├── docker-compose.yml             # Docker Swarm stack configuration
+├── nginx-lb.conf                  # Nginx load balancer configuration
 ├── deploy-cloudformation.sh       # CloudFormation deployment script
 ├── update_ecs_task.sh             # ECS image build and deploy script
+├── test_gpu.py                    # GPU/CUDA availability test
 ├── pyproject.toml                 # Python project configuration (uv)
+├── .markdownlint.json             # Markdownlint configuration
 ├── .python-version                # Python version (3.12)
 ├── uv.lock                        # Python dependency lock file
+├── CHANGELOG.md                   # Version history
+├── DOCKER_DEPLOYMENT.md           # Docker Swarm deployment guide
+├── LICENSE                        # MIT license
 └── README.md                      # This file
 ```
 
@@ -453,14 +501,14 @@ ai-image-cropper-v2/
 - **Python**: 3.12+
 - **Package Manager**: [uv](https://docs.astral.sh/uv/)
 - **Key Dependencies**:
-  - fastapi >= 0.121.0
-  - opencv-python >= 4.8.0
-  - ultralytics >= 8.0.0 (YOLO)
+  - fastapi >= 0.121.1
+  - opencv-python >= 4.12.0
+  - ultralytics >= 8.3.0 (YOLO)
   - transformers >= 4.30.0 (DETR and RT-DETR)
   - rfdetr >= 1.3.0 (RF-DETR)
   - torch >= 2.0.0
-  - numpy >= 1.24.0
-  - pillow >= 10.0.0
+  - numpy >= 2.2.0
+  - pillow >= 11.0.0
 
 See [`pyproject.toml`](pyproject.toml) for complete dependency list.
 
@@ -479,4 +527,6 @@ If you're using CPU-only inference, Python 3.13 will work, but we standardize on
 
 This project is open source and available under the [MIT License](LICENSE).
 
-Copyright (c) 2025 Gary A. Stafford
+## Disclaimer
+
+The contents of this repository represent my viewpoints and not those of my past or current employers, including Amazon Web Services (AWS). All third-party libraries, modules, plugins, and SDKs are the property of their respective owners.

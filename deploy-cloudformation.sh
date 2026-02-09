@@ -96,7 +96,8 @@ get_stack_status() {
 
 is_stack_complete() {
     local stack_name=$1
-    local status=$(get_stack_status "$stack_name")
+    local status
+    status=$(get_stack_status "$stack_name")
 
     if [[ "$status" == "CREATE_COMPLETE" ]] || [[ "$status" == "UPDATE_COMPLETE" ]]; then
         return 0
@@ -107,7 +108,8 @@ is_stack_complete() {
 
 # Create parameters file with ProjectName, Environment, and filtered common parameters
 create_params_file() {
-    local temp_file=$(mktemp)
+    local temp_file
+    temp_file=$(mktemp)
     local param_keys=("$@")
 
     # Start with ProjectName and Environment
@@ -131,7 +133,8 @@ EOF
         local first=true
         for key in "${param_keys[@]}"; do
             # Find the parameter in common-parameters.json
-            local param_block=$(grep -A 1 "\"ParameterKey\": \"$key\"" "$TEMPLATE_DIR/common-parameters.json" | grep -A 1 "ParameterKey")
+            local param_block
+            param_block=$(grep -A 1 "\"ParameterKey\": \"$key\"" "$TEMPLATE_DIR/common-parameters.json" | grep -A 1 "ParameterKey")
 
             if [[ -n "$param_block" ]]; then
                 if [[ "$first" == false ]]; then
@@ -140,7 +143,8 @@ EOF
                 first=false
 
                 # Extract the value
-                local value=$(grep -A 1 "\"ParameterKey\": \"$key\"" "$TEMPLATE_DIR/common-parameters.json" | grep "ParameterValue" | sed 's/.*"ParameterValue": "\(.*\)".*/\1/')
+                local value
+                value=$(grep -A 1 "\"ParameterKey\": \"$key\"" "$TEMPLATE_DIR/common-parameters.json" | grep "ParameterValue" | sed 's/.*"ParameterValue": "\(.*\)".*/\1/')
 
                 # Write parameter to temp file
                 cat >> "$temp_file" <<EOF

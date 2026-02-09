@@ -95,6 +95,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added HTTP to HTTPS redirect on ALB listener
 - ALB security group auto-restricts access to deployer's IP
 
+### Development
+
+- Added ShellCheck linting for shell scripts (`deploy-cloudformation.sh`, `update_ecs_task.sh`)
+- Added markdownlint linting for all Markdown files with `.markdownlint.json` configuration
+- Added `lint-shell` and `lint-markdown` CI workflow jobs
+- Fixed all ShellCheck warnings (SC2155 variable masking, SC2086 quoting)
+
 ### Documentation
 
 - Removed real AWS resource IDs from PARAMETERS.md examples

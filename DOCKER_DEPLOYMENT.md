@@ -397,23 +397,23 @@ For production deployments across multiple nodes:
 
 1. **Add worker nodes**:
 
-```bash
-# On manager node, get join token
-docker swarm join-token worker
+   ```bash
+   # On manager node, get join token
+   docker swarm join-token worker
 
-# On worker nodes, run the join command
-docker swarm join --token <token> <manager-ip>:2377
-```
+   # On worker nodes, run the join command
+   docker swarm join --token <token> <manager-ip>:2377
+   ```
 
 2. **Deploy with constraints**:
    Modify `docker-compose.yml` to add placement constraints:
 
-```yaml
-deploy:
-  placement:
-    constraints:
-      - node.role == worker
-```
+   ```yaml
+   deploy:
+     placement:
+       constraints:
+         - node.role == worker
+   ```
 
 ## Support
 

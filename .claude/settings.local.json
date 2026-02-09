@@ -57,7 +57,13 @@
       "Bash(git -C /Users/garystafford/Documents/projects/ai-image-cropper-v2 status)",
       "Bash(git -C /Users/garystafford/Documents/projects/ai-image-cropper-v2 diff)",
       "Bash(git -C /Users/garystafford/Documents/projects/ai-image-cropper-v2 log --oneline -5)",
-      "Bash(git -C /Users/garystafford/Documents/projects/ai-image-cropper-v2 add CHANGELOG.md README.md cloudformation/PARAMETERS.md cloudformation/README.md frontend/src/App.css frontend/src/MainApp.jsx frontend/src/index.css .claude/settings.local.json)"
+      "Bash(git -C /Users/garystafford/Documents/projects/ai-image-cropper-v2 add CHANGELOG.md README.md cloudformation/PARAMETERS.md cloudformation/README.md frontend/src/App.css frontend/src/MainApp.jsx frontend/src/index.css .claude/settings.local.json)",
+      "Bash(git commit:*)",
+      "Bash(git -C /Users/garystafford/Documents/projects/ai-image-cropper-v2 push)",
+      "Bash(shellcheck:*)",
+      "Bash(npx markdownlint-cli:*)",
+      "Bash(echo:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
