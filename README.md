@@ -130,10 +130,6 @@ graph LR
     S6 --> S7[07 - Cognito]
     S7 --> S8[08 - ALB Update<br/>+ WAF + Cognito]
     S8 --> S9[09 - CloudFront<br/>+ Route 53]
-
-    style S7 fill:#f9f,stroke:#333
-    style S8 fill:#f9f,stroke:#333
-    style S9 fill:#f9f,stroke:#333
 ```
 
 Steps 7-9 (highlighted) are optional and deploy automatically when `AppDomainName`, `CognitoDomainPrefix`, `HostedZoneId`, and `CloudFrontCertificateArn` are configured in `common-parameters.json`.

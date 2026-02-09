@@ -63,7 +63,13 @@
       "Bash(shellcheck:*)",
       "Bash(npx markdownlint-cli:*)",
       "Bash(echo:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git -C /Users/garystafford/Documents/projects/ai-image-cropper-v2 diff --stat)",
+      "Bash(git -C /Users/garystafford/Documents/projects/ai-image-cropper-v2 diff -- .claude/settings.local.json)",
+      "Bash(git -C /Users/garystafford/Documents/projects/ai-image-cropper-v2 add README.md cloudformation/03-load-balancer.yaml cloudformation/08-cognito.yaml cloudformation/09-cloudfront.yaml cloudformation/PARAMETERS.md cloudformation/README.md cloudformation/common-parameters.json.example deploy-cloudformation.sh)",
+      "Bash(git -C /Users/garystafford/Documents/projects/ai-image-cropper-v2 add README.md cloudformation/08-cognito.yaml cloudformation/09-cloudfront.yaml)",
+      "Bash(git -C /Users/garystafford/Documents/projects/ai-image-cropper-v2 commit -m \"$\\(cat <<''EOF''\nRemove domain name references from templates and README\n\nReplace cropper.creativitylabsai.com with generic app.example.com\nin CloudFormation parameter descriptions and Mermaid diagrams.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -C /Users/garystafford/Documents/projects/ai-image-cropper-v2 status --short)"
     ],
     "deny": [],
     "ask": []
