@@ -19,7 +19,7 @@ Parameters:
     Type: String
     Description: >
       Fully qualified domain name for the application
-      (e.g., cropper.creativitylabsai.com). Used to construct
+      (e.g., app.example.com). Used to construct
       the Cognito callback URL for ALB authentication.
 
   CognitoDomainPrefix:

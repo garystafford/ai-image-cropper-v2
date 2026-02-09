@@ -70,7 +70,7 @@ graph TB
     User([User]) --> Route53
 
     subgraph DNS
-        Route53[Route 53<br/>cropper.creativitylabsai.com]
+        Route53[Route 53<br/>app.example.com]
     end
 
     Route53 --> CloudFront
@@ -111,7 +111,7 @@ graph TB
 
     ECR -.-> ECS
 
-    ACM[ACM Certificates<br/>*.creativitylabsai.com] -.-> CloudFront
+    ACM[ACM Certificates<br/>*.example.com] -.-> CloudFront
     ACM -.-> ALB
 
     SSM[SSM Parameter Store<br/>Origin verify secret] -.-> CloudFront
@@ -149,7 +149,7 @@ sequenceDiagram
     participant Cognito as Cognito
     participant ECS as ECS Fargate
 
-    User->>CF: HTTPS request (cropper.creativitylabsai.com)
+    User->>CF: HTTPS request (app.example.com)
     CF->>WAF: Forward + X-Origin-Verify header
     WAF->>WAF: Validate header matches secret
 
