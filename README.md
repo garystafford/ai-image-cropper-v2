@@ -428,12 +428,23 @@ ai-image-cropper-v2/
 │   ├── package.json               # npm dependencies
 │   ├── vite.config.js             # Vite configuration
 │   └── index.html                 # HTML entry point
+├── cloudformation/                # AWS CloudFormation templates
+│   ├── 01-ecr-repositories.yaml   # ECR container registries
+│   ├── 02-efs-storage.yaml        # Elastic File System
+│   ├── 03-load-balancer.yaml      # Application Load Balancer
+│   ├── 04-iam-roles.yaml          # IAM roles for ECS
+│   ├── 05-ecs-cluster.yaml        # ECS Fargate cluster
+│   ├── 06-ecs-service.yaml        # ECS service and task definition
+│   └── common-parameters.json.example  # Example parameters file
 ├── sample_images/                 # Sample images for testing
-├── cropped_images/                # Batch crop output (generated)
+├── Dockerfile.backend             # Backend Docker image
+├── Dockerfile.frontend            # Frontend Docker image
+├── docker-compose.yml             # Docker Swarm stack configuration
+├── deploy-cloudformation.sh       # CloudFormation deployment script
+├── update_ecs_task.sh             # ECS image build and deploy script
 ├── pyproject.toml                 # Python project configuration (uv)
 ├── .python-version                # Python version (3.12)
 ├── uv.lock                        # Python dependency lock file
-├── .venv/                         # Virtual environment (created by uv)
 └── README.md                      # This file
 ```
 

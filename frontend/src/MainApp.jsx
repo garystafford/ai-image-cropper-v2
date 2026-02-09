@@ -79,7 +79,7 @@ function MainApp() {
           overflowMenuTitleText: 'All',
         }}
       />
-      <div style={{ marginTop: '0px' }}>
+      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '2rem' }}>
         {activeView === 'interactive' ? <App /> : <CliApp />}
       </div>
     </>

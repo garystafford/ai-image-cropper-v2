@@ -49,7 +49,15 @@
       "Bash(ParameterKey=ECSSecurityGroupId,ParameterValue=sg-0cfbd579298ef530c )",
       "Bash(aws cloudformation wait:*)",
       "Bash(aws:*)",
-      "Bash(./update_ecs_task.sh)"
+      "Bash(./update_ecs_task.sh)",
+      "Bash(dig:*)",
+      "Bash(grep:*)",
+      "Bash(npm run build:*)",
+      "Bash(bash:*)",
+      "Bash(git -C /Users/garystafford/Documents/projects/ai-image-cropper-v2 status)",
+      "Bash(git -C /Users/garystafford/Documents/projects/ai-image-cropper-v2 diff)",
+      "Bash(git -C /Users/garystafford/Documents/projects/ai-image-cropper-v2 log --oneline -5)",
+      "Bash(git -C /Users/garystafford/Documents/projects/ai-image-cropper-v2 add CHANGELOG.md README.md cloudformation/PARAMETERS.md cloudformation/README.md frontend/src/App.css frontend/src/MainApp.jsx frontend/src/index.css .claude/settings.local.json)"
     ],
     "deny": [],
     "ask": []

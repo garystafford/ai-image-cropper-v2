@@ -80,6 +80,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **DETR**: Moderate speed, ~3GB memory - Good accuracy
 - **Traditional CV**: Milliseconds inference, minimal memory - Fast but less accurate
 
+## [1.0.2] - 2026-02-09
+
+### Fixed
+
+- Fixed TopNavigation bar clipping on the right edge by removing `max-width` constraint from `#root` container
+- Scoped `max-width: 1280px` and `padding: 2rem` to content wrapper below navbar
+- Changed body flex layout from `place-items: center` to `flex-direction: column` for proper top-down flow
+
+### Infrastructure
+
+- Added CloudFormation support for full ECS Fargate deployment (templates 01-07)
+- Added Route 53 subdomain configuration with ALB ALIAS record
+- Added HTTP to HTTPS redirect on ALB listener
+- ALB security group auto-restricts access to deployer's IP
+
+### Documentation
+
+- Removed real AWS resource IDs from PARAMETERS.md examples
+- Updated cloudformation/README.md to reflect all 7 CloudFormation templates
+- Added ECS Fargate and ALB cost estimates to documentation
+
 ## [Unreleased]
 
 ### Planned
@@ -114,4 +135,5 @@ This is the initial production release of AI Image Cropper v2, featuring multipl
 
 ---
 
+[1.0.2]: https://github.com/garystafford/ai-image-cropper-v2/releases/tag/v1.0.2
 [1.0.0]: https://github.com/garystafford/ai-image-cropper-v2/releases/tag/v1.0.0

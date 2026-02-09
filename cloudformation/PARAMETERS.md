@@ -30,9 +30,9 @@ All deployment parameters are now in one file for easier management. The script 
 
 | Parameter | Used By | Required | Description | Example | Default |
 |-----------|---------|----------|-------------|---------|---------|
-| **VpcId** | EFS, ALB | Yes | Your VPC ID where resources will be deployed | `vpc-3eaeee44` | - |
+| **VpcId** | EFS, ALB | Yes | Your VPC ID where resources will be deployed | `vpc-xxxxxxxx` | - |
 | **SubnetIds** | EFS, ALB, ECS Service | Yes | Comma-separated list of subnet IDs (minimum 2, recommend 3) | `subnet-xxx,subnet-yyy,subnet-zzz` | - |
-| **ECSSecurityGroupId** | EFS, ALB, ECS Service | Yes | Existing security group ID for ECS tasks | `sg-0cfbd579298ef530c` | - |
+| **ECSSecurityGroupId** | EFS, ALB, ECS Service | Yes | Existing security group ID for ECS tasks | `sg-xxxxxxxxxxxxxxxxx` | - |
 | **CertificateArn** | ALB | No | ACM certificate ARN for HTTPS. Leave empty for HTTP-only | `arn:aws:acm:...` | `""` |
 | **FrontendImageTag** | ECS Service | No | Docker image tag for frontend | `1.0.0` | `1.0.0` |
 | **BackendImageTag** | ECS Service | No | Docker image tag for backend | `1.0.0` | `1.0.0` |
@@ -146,15 +146,15 @@ Here's a complete example configuration file:
 [
   {
     "ParameterKey": "VpcId",
-    "ParameterValue": "vpc-3eaeee44"
+    "ParameterValue": "vpc-xxxxxxxx"
   },
   {
     "ParameterKey": "SubnetIds",
-    "ParameterValue": "subnet-8b770cb5,subnet-43a6610e,subnet-e2ac45ec"
+    "ParameterValue": "subnet-xxxxxxxx,subnet-yyyyyyyy,subnet-zzzzzzzz"
   },
   {
     "ParameterKey": "ECSSecurityGroupId",
-    "ParameterValue": "sg-0cfbd579298ef530c"
+    "ParameterValue": "sg-xxxxxxxxxxxxxxxxx"
   },
   {
     "ParameterKey": "CertificateArn",
