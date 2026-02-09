@@ -1,0 +1,118 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AI Image Cropper v2 - Cognito Authentication (Step 8 - User Pool)'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ai-image-cropper-v2
+    Description: Project name used for naming resources
+    AllowedPattern: '[a-zA-Z0-9-]+'
+    ConstraintDescription: Must contain only alphanumeric characters and hyphens
+
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues: [dev, staging, prod]
+    Description: Environment name
+
+  AppDomainName:
+    Type: String
+    Description: >
+      Fully qualified domain name for the application
+      (e.g., cropper.creativitylabsai.com). Used to construct
+      the Cognito callback URL for ALB authentication.
+
+  CognitoDomainPrefix:
+    Type: String
+    Description: >
+      Prefix for the Cognito hosted UI domain. Must be globally unique.
+      The full domain will be: <prefix>.auth.<region>.amazoncognito.com
+    AllowedPattern: '[a-z0-9-]+'
+    ConstraintDescription: Must contain only lowercase alphanumeric characters and hyphens
+
+Resources:
+  # ========================================
+  # Cognito User Pool
+  # ========================================
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub '${ProjectName}-users-${Environment}'
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+      UserPoolTags:
+        Project: !Ref ProjectName
+        Environment: !Ref Environment
+
+  # ========================================
+  # Cognito User Pool Domain (Hosted UI)
+  # ========================================
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Ref CognitoDomainPrefix
+      UserPoolId: !Ref UserPool
+
+  # ========================================
+  # Cognito App Client (for ALB integration)
+  # ========================================
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    DependsOn: UserPoolDomain
+    Properties:
+      ClientName: !Sub '${ProjectName}-alb-client-${Environment}'
+      UserPoolId: !Ref UserPool
+      GenerateSecret: true
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - openid
+      CallbackURLs:
+        - !Sub 'https://${AppDomainName}/oauth2/idpresponse'
+      SupportedIdentityProviders:
+        - COGNITO
+
+# ========================================
+# Outputs
+# ========================================
+Outputs:
+  UserPoolId:
+    Description: ID of the Cognito User Pool
+    Value: !Ref UserPool
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-Cognito-UserPool-ID'
+
+  UserPoolArn:
+    Description: ARN of the Cognito User Pool
+    Value: !GetAtt UserPool.Arn
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-Cognito-UserPool-ARN'
+
+  UserPoolClientId:
+    Description: ID of the Cognito App Client
+    Value: !Ref UserPoolClient
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-Cognito-Client-ID'
+
+  UserPoolDomainName:
+    Description: Cognito hosted UI domain
+    Value: !Sub '${CognitoDomainPrefix}.auth.${AWS::Region}.amazoncognito.com'
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-Cognito-Domain'

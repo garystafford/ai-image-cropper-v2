@@ -231,6 +231,48 @@ if [[ ! -f "$TEMPLATE_DIR/common-parameters.json" ]]; then
     exit 1
 fi
 
+# Helper to extract a parameter value from common-parameters.json
+get_param_value() {
+    local key=$1
+    grep -A 1 "\"ParameterKey\": \"$key\"" "$TEMPLATE_DIR/common-parameters.json" \
+        | grep "ParameterValue" \
+        | sed 's/.*"ParameterValue": "\(.*\)".*/\1/'
+}
+
+# ========================================
+# Detect optional Cognito/CloudFront configuration
+# ========================================
+ENABLE_COGNITO=false
+ENABLE_CLOUDFRONT=false
+
+COGNITO_DOMAIN_PREFIX=$(get_param_value "CognitoDomainPrefix")
+APP_DOMAIN_NAME=$(get_param_value "AppDomainName")
+HOSTED_ZONE_ID=$(get_param_value "HostedZoneId")
+CF_CERT_ARN=$(get_param_value "CloudFrontCertificateArn")
+
+if [[ -n "$COGNITO_DOMAIN_PREFIX" && -n "$APP_DOMAIN_NAME" ]]; then
+    ENABLE_COGNITO=true
+fi
+
+if [[ -n "$APP_DOMAIN_NAME" && -n "$HOSTED_ZONE_ID" && -n "$CF_CERT_ARN" ]]; then
+    ENABLE_CLOUDFRONT=true
+fi
+
+# Validate optional templates if features are enabled
+if [[ "$ENABLE_COGNITO" == true ]]; then
+    if [[ ! -f "$TEMPLATE_DIR/08-cognito.yaml" ]]; then
+        print_error "CloudFormation template not found: $TEMPLATE_DIR/08-cognito.yaml"
+        exit 1
+    fi
+fi
+
+if [[ "$ENABLE_CLOUDFRONT" == true ]]; then
+    if [[ ! -f "$TEMPLATE_DIR/09-cloudfront.yaml" ]]; then
+        print_error "CloudFormation template not found: $TEMPLATE_DIR/09-cloudfront.yaml"
+        exit 1
+    fi
+fi
+
 # ========================================
 # Main Deployment Logic
 # ========================================
@@ -241,6 +283,12 @@ echo "Project: $PROJECT_NAME"
 echo "Environment: $ENVIRONMENT"
 echo "Region: $REGION"
 echo "Templates: $TEMPLATE_DIR/"
+if [[ "$ENABLE_COGNITO" == true ]]; then
+    print_info "Cognito authentication enabled (domain prefix: $COGNITO_DOMAIN_PREFIX)"
+fi
+if [[ "$ENABLE_CLOUDFRONT" == true ]]; then
+    print_info "CloudFront distribution enabled (domain: $APP_DOMAIN_NAME)"
+fi
 echo ""
 
 # ========================================
@@ -319,7 +367,8 @@ TEMP_PARAMS_FILE=$(create_params_file "VpcId" "SubnetIds" "ECSSecurityGroupId")
 
 # Cleanup function to remove temp files
 cleanup_temp() {
-    rm -f "$TEMP_PARAMS_FILE" "$TEMP_ALB_PARAMS_FILE" "$TEMP_ECS_PARAMS_FILE"
+    rm -f "$TEMP_PARAMS_FILE" "$TEMP_ALB_PARAMS_FILE" "$TEMP_ECS_PARAMS_FILE" \
+          "$TEMP_COGNITO_PARAMS_FILE" "$TEMP_ALB_UPDATE_PARAMS_FILE" "$TEMP_CF_PARAMS_FILE"
 }
 trap cleanup_temp EXIT
 
@@ -644,6 +693,295 @@ fi
 get_stack_outputs "$STACK_NAME_SERVICE"
 
 # ========================================
+# Step 7: Deploy Cognito User Pool (Optional)
+# ========================================
+if [[ "$ENABLE_COGNITO" == true ]]; then
+    STACK_NAME_COGNITO="${PROJECT_NAME}-cognito-${ENVIRONMENT}"
+
+    print_header "Step 7: Deploying Cognito User Pool"
+
+    TEMP_COGNITO_PARAMS_FILE=$(create_params_file "AppDomainName" "CognitoDomainPrefix")
+
+    OPERATION=""
+
+    if check_stack_exists "$STACK_NAME_COGNITO"; then
+        CURRENT_STATUS=$(get_stack_status "$STACK_NAME_COGNITO")
+        print_info "Stack $STACK_NAME_COGNITO exists with status: $CURRENT_STATUS"
+
+        if is_stack_complete "$STACK_NAME_COGNITO"; then
+            print_success "Stack $STACK_NAME_COGNITO is already in a completed state. Skipping deployment."
+        else
+            print_info "Stack $STACK_NAME_COGNITO needs updating..."
+            OPERATION="update"
+
+            aws cloudformation update-stack \
+                --stack-name "$STACK_NAME_COGNITO" \
+                --template-body "file://$TEMPLATE_DIR/08-cognito.yaml" \
+                --parameters "file://$TEMP_COGNITO_PARAMS_FILE" \
+                --region "$REGION" \
+                --capabilities CAPABILITY_IAM \
+                2>/dev/null || {
+                    if [[ $? -eq 254 ]]; then
+                        print_info "No updates to be performed on $STACK_NAME_COGNITO"
+                        OPERATION=""
+                    else
+                        print_error "Failed to update stack $STACK_NAME_COGNITO"
+                        exit 1
+                    fi
+                }
+        fi
+    else
+        print_info "Creating stack $STACK_NAME_COGNITO..."
+        OPERATION="create"
+
+        aws cloudformation create-stack \
+            --stack-name "$STACK_NAME_COGNITO" \
+            --template-body "file://$TEMPLATE_DIR/08-cognito.yaml" \
+            --parameters "file://$TEMP_COGNITO_PARAMS_FILE" \
+            --region "$REGION" \
+            --capabilities CAPABILITY_IAM
+    fi
+
+    if [[ "$OPERATION" != "" ]]; then
+        if ! wait_for_stack "$STACK_NAME_COGNITO" "$OPERATION"; then
+            print_error "Cognito stack deployment failed. Check AWS Console for details."
+            exit 1
+        fi
+    fi
+
+    get_stack_outputs "$STACK_NAME_COGNITO"
+else
+    print_info "Skipping Step 7: Cognito not configured (CognitoDomainPrefix or AppDomainName is empty)"
+fi
+
+# ========================================
+# Step 8: Update ALB with Cognito/CloudFront Settings (Optional)
+# ========================================
+if [[ "$ENABLE_COGNITO" == true ]] || [[ "$ENABLE_CLOUDFRONT" == true ]]; then
+    print_header "Step 8: Updating ALB with Cognito/WAF Configuration"
+
+    # Generate or retrieve origin verify secret for WAF
+    ORIGIN_VERIFY_SECRET=""
+    if [[ "$ENABLE_CLOUDFRONT" == true ]]; then
+        SSM_PARAM_NAME="/${PROJECT_NAME}/${ENVIRONMENT}/origin-verify-secret"
+
+        # Try to retrieve existing secret from SSM
+        ORIGIN_VERIFY_SECRET=$(aws ssm get-parameter \
+            --name "$SSM_PARAM_NAME" \
+            --with-decryption \
+            --query "Parameter.Value" \
+            --output text \
+            --region "$REGION" 2>/dev/null) || true
+
+        if [[ -z "$ORIGIN_VERIFY_SECRET" || "$ORIGIN_VERIFY_SECRET" == "None" ]]; then
+            # Generate new secret
+            ORIGIN_VERIFY_SECRET=$(python3 -c "import uuid; print(str(uuid.uuid4()))")
+            aws ssm put-parameter \
+                --name "$SSM_PARAM_NAME" \
+                --value "$ORIGIN_VERIFY_SECRET" \
+                --type SecureString \
+                --description "Origin verify header secret for CloudFront to ALB WAF validation" \
+                --region "$REGION"
+            print_success "Generated and stored origin verify secret in SSM: $SSM_PARAM_NAME"
+        else
+            print_success "Retrieved origin verify secret from SSM: $SSM_PARAM_NAME"
+        fi
+    fi
+
+    # Retrieve Cognito stack outputs
+    COGNITO_USER_POOL_ARN=""
+    COGNITO_CLIENT_ID=""
+    COGNITO_DOMAIN=""
+
+    if [[ "$ENABLE_COGNITO" == true ]]; then
+        STACK_NAME_COGNITO="${PROJECT_NAME}-cognito-${ENVIRONMENT}"
+
+        COGNITO_USER_POOL_ARN=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME_COGNITO" \
+            --region "$REGION" \
+            --query "Stacks[0].Outputs[?OutputKey=='UserPoolArn'].OutputValue" \
+            --output text)
+
+        COGNITO_CLIENT_ID=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME_COGNITO" \
+            --region "$REGION" \
+            --query "Stacks[0].Outputs[?OutputKey=='UserPoolClientId'].OutputValue" \
+            --output text)
+
+        COGNITO_DOMAIN=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME_COGNITO" \
+            --region "$REGION" \
+            --query "Stacks[0].Outputs[?OutputKey=='UserPoolDomainName'].OutputValue" \
+            --output text)
+
+        print_success "Cognito User Pool ARN: $COGNITO_USER_POOL_ARN"
+        print_success "Cognito Client ID: $COGNITO_CLIENT_ID"
+        print_success "Cognito Domain: $COGNITO_DOMAIN"
+    fi
+
+    # ALB AllowedCidr is always the deployer's IP (never 0.0.0.0/0)
+    ALB_ALLOWED_CIDR="${MY_PUBLIC_IP}/32"
+
+    # Look up CloudFront managed prefix list for SG ingress
+    CF_PREFIX_LIST_ID=""
+    if [[ "$ENABLE_CLOUDFRONT" == true ]]; then
+        CF_PREFIX_LIST_ID=$(aws ec2 describe-managed-prefix-lists \
+            --filters "Name=prefix-list-name,Values=com.amazonaws.global.cloudfront.origin-facing" \
+            --region "$REGION" \
+            --query 'PrefixLists[0].PrefixListId' \
+            --output text)
+        if [[ -z "$CF_PREFIX_LIST_ID" || "$CF_PREFIX_LIST_ID" == "None" ]]; then
+            print_error "Could not find CloudFront managed prefix list"
+            exit 1
+        fi
+        print_success "CloudFront prefix list ID: $CF_PREFIX_LIST_ID"
+    fi
+
+    # Build ALB params file with Cognito/WAF additions
+    TEMP_ALB_UPDATE_BASE=$(create_params_file "VpcId" "SubnetIds" "CertificateArn" "ECSSecurityGroupId")
+
+    TEMP_ALB_UPDATE_PARAMS_FILE=$(mktemp)
+    sed '$d' "$TEMP_ALB_UPDATE_BASE" > "$TEMP_ALB_UPDATE_PARAMS_FILE"
+    cat >> "$TEMP_ALB_UPDATE_PARAMS_FILE" <<EOF
+  ,
+  {
+    "ParameterKey": "AllowedCidr",
+    "ParameterValue": "${ALB_ALLOWED_CIDR}"
+  },
+  {
+    "ParameterKey": "CognitoUserPoolArn",
+    "ParameterValue": "${COGNITO_USER_POOL_ARN}"
+  },
+  {
+    "ParameterKey": "CognitoUserPoolClientId",
+    "ParameterValue": "${COGNITO_CLIENT_ID}"
+  },
+  {
+    "ParameterKey": "CognitoUserPoolDomain",
+    "ParameterValue": "${COGNITO_DOMAIN}"
+  },
+  {
+    "ParameterKey": "OriginVerifyHeaderValue",
+    "ParameterValue": "${ORIGIN_VERIFY_SECRET}"
+  },
+  {
+    "ParameterKey": "CloudFrontPrefixListId",
+    "ParameterValue": "${CF_PREFIX_LIST_ID}"
+  }
+]
+EOF
+    rm -f "$TEMP_ALB_UPDATE_BASE"
+
+    # Force update ALB stack (even if complete)
+    print_info "Updating stack $STACK_NAME_ALB with Cognito/WAF parameters..."
+
+    aws cloudformation update-stack \
+        --stack-name "$STACK_NAME_ALB" \
+        --template-body "file://$TEMPLATE_DIR/03-load-balancer.yaml" \
+        --parameters "file://$TEMP_ALB_UPDATE_PARAMS_FILE" \
+        --region "$REGION" \
+        --capabilities CAPABILITY_IAM \
+        2>/dev/null || {
+            RESULT=$?
+            if [[ $RESULT -eq 254 ]] || [[ $RESULT -eq 0 ]]; then
+                print_info "No updates to be performed on $STACK_NAME_ALB"
+            else
+                print_error "Failed to update stack $STACK_NAME_ALB"
+                exit 1
+            fi
+        }
+
+    # Wait for update if it started
+    CURRENT_STATUS=$(get_stack_status "$STACK_NAME_ALB")
+    if [[ "$CURRENT_STATUS" == "UPDATE_IN_PROGRESS" ]]; then
+        if ! wait_for_stack "$STACK_NAME_ALB" "update"; then
+            print_error "ALB stack update failed. Check AWS Console for details."
+            exit 1
+        fi
+    fi
+
+    get_stack_outputs "$STACK_NAME_ALB"
+    rm -f "$TEMP_ALB_UPDATE_PARAMS_FILE"
+else
+    print_info "Skipping Step 8: No Cognito/WAF configuration to apply to ALB"
+fi
+
+# ========================================
+# Step 9: Deploy CloudFront Distribution (Optional)
+# ========================================
+if [[ "$ENABLE_CLOUDFRONT" == true ]]; then
+    STACK_NAME_CF="${PROJECT_NAME}-cloudfront-${ENVIRONMENT}"
+
+    print_header "Step 9: Deploying CloudFront Distribution"
+
+    # Build params with OriginVerifyHeaderValue
+    TEMP_CF_PARAMS_BASE=$(create_params_file "AppDomainName" "HostedZoneId" "CloudFrontCertificateArn")
+    TEMP_CF_PARAMS_FILE=$(mktemp)
+    sed '$d' "$TEMP_CF_PARAMS_BASE" > "$TEMP_CF_PARAMS_FILE"
+    cat >> "$TEMP_CF_PARAMS_FILE" <<EOF
+  ,
+  {
+    "ParameterKey": "OriginVerifyHeaderValue",
+    "ParameterValue": "${ORIGIN_VERIFY_SECRET}"
+  }
+]
+EOF
+    rm -f "$TEMP_CF_PARAMS_BASE"
+
+    OPERATION=""
+
+    if check_stack_exists "$STACK_NAME_CF"; then
+        CURRENT_STATUS=$(get_stack_status "$STACK_NAME_CF")
+        print_info "Stack $STACK_NAME_CF exists with status: $CURRENT_STATUS"
+
+        if is_stack_complete "$STACK_NAME_CF"; then
+            print_success "Stack $STACK_NAME_CF is already in a completed state. Skipping deployment."
+        else
+            print_info "Stack $STACK_NAME_CF needs updating..."
+            OPERATION="update"
+
+            aws cloudformation update-stack \
+                --stack-name "$STACK_NAME_CF" \
+                --template-body "file://$TEMPLATE_DIR/09-cloudfront.yaml" \
+                --parameters "file://$TEMP_CF_PARAMS_FILE" \
+                --region "$REGION" \
+                --capabilities CAPABILITY_IAM \
+                2>/dev/null || {
+                    if [[ $? -eq 254 ]]; then
+                        print_info "No updates to be performed on $STACK_NAME_CF"
+                        OPERATION=""
+                    else
+                        print_error "Failed to update stack $STACK_NAME_CF"
+                        exit 1
+                    fi
+                }
+        fi
+    else
+        print_info "Creating stack $STACK_NAME_CF..."
+        print_info "Note: CloudFront distributions can take 10-15 minutes to deploy..."
+        OPERATION="create"
+
+        aws cloudformation create-stack \
+            --stack-name "$STACK_NAME_CF" \
+            --template-body "file://$TEMPLATE_DIR/09-cloudfront.yaml" \
+            --parameters "file://$TEMP_CF_PARAMS_FILE" \
+            --region "$REGION" \
+            --capabilities CAPABILITY_IAM
+    fi
+
+    if [[ "$OPERATION" != "" ]]; then
+        if ! wait_for_stack "$STACK_NAME_CF" "$OPERATION"; then
+            print_error "CloudFront stack deployment failed. Check AWS Console for details."
+            exit 1
+        fi
+    fi
+
+    get_stack_outputs "$STACK_NAME_CF"
+else
+    print_info "Skipping Step 9: CloudFront not configured (AppDomainName, HostedZoneId, or CloudFrontCertificateArn is empty)"
+fi
+
+# ========================================
 # Deployment Complete
 # ========================================
 print_header "Deployment Complete!"
@@ -658,12 +996,33 @@ echo "  3. ALB: $STACK_NAME_ALB"
 echo "  4. IAM: $STACK_NAME_IAM"
 echo "  5. Cluster: $STACK_NAME_CLUSTER"
 echo "  6. Service: $STACK_NAME_SERVICE"
+if [[ "$ENABLE_COGNITO" == true ]]; then
+    echo "  7. Cognito: ${PROJECT_NAME}-cognito-${ENVIRONMENT}"
+fi
+if [[ "$ENABLE_COGNITO" == true ]] || [[ "$ENABLE_CLOUDFRONT" == true ]]; then
+    echo "  8. ALB Updated: $STACK_NAME_ALB (Cognito/WAF)"
+fi
+if [[ "$ENABLE_CLOUDFRONT" == true ]]; then
+    echo "  9. CloudFront: ${PROJECT_NAME}-cloudfront-${ENVIRONMENT}"
+fi
 echo ""
-echo "Application URL:"
-echo "  Check the ALB DNS output above for the application URL"
+if [[ "$ENABLE_CLOUDFRONT" == true ]]; then
+    echo "Application URL:"
+    echo "  https://$APP_DOMAIN_NAME"
+else
+    echo "Application URL:"
+    echo "  Check the ALB DNS output above for the application URL"
+fi
 echo ""
 echo "Next Steps:"
 echo "  1. Verify all services are running: aws ecs describe-services --cluster ${PROJECT_NAME}-cluster-${ENVIRONMENT} --services ${PROJECT_NAME}-service-${ENVIRONMENT} --region $REGION"
-echo "  2. Check application health at the ALB URL above"
-echo "  3. To update Docker images: cd $TEMPLATE_DIR && ./update_ecs_task.sh"
+echo "  2. Check application health at the URL above"
+if [[ "$ENABLE_COGNITO" == true ]]; then
+    COGNITO_POOL_ID=$(aws cloudformation describe-stacks \
+        --stack-name "${PROJECT_NAME}-cognito-${ENVIRONMENT}" \
+        --region "$REGION" \
+        --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" \
+        --output text 2>/dev/null || echo "<pool-id>")
+    echo "  3. Create Cognito users: aws cognito-idp admin-create-user --user-pool-id $COGNITO_POOL_ID --username <email> --user-attributes Name=email,Value=<email> --region $REGION"
+fi
 echo ""

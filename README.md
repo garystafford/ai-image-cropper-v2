@@ -49,7 +49,7 @@ Deploy as a multi-service Docker Swarm stack with an nginx load balancer, persis
 
 ### AWS ECS Fargate (Cloud)
 
-Deploy to AWS using CloudFormation templates that provision ECR repositories, an EFS file system for model storage, an Application Load Balancer with HTTPS, IAM roles, and an ECS Fargate cluster. The deployment is automated via a single script:
+Deploy to AWS using CloudFormation templates that provision the full stack: CloudFront CDN, WAF, Cognito authentication, Application Load Balancer, and ECS Fargate. The deployment is automated via a single script:
 
 ```bash
 # 1. Configure parameters
@@ -61,6 +61,120 @@ cp cloudformation/common-parameters.json.example cloudformation/common-parameter
 
 # 3. Build and push Docker images, register task definition, update service
 ./update_ecs_task.sh
+```
+
+#### AWS Architecture
+
+```mermaid
+graph TB
+    User([User]) --> Route53
+
+    subgraph DNS
+        Route53[Route 53<br/>cropper.creativitylabsai.com]
+    end
+
+    Route53 --> CloudFront
+
+    subgraph CDN ["CloudFront CDN"]
+        CloudFront[CloudFront Distribution<br/>HTTPS + X-Origin-Verify header]
+    end
+
+    CloudFront --> WAF
+
+    subgraph Security ["Security Layer"]
+        WAF[AWS WAF WebACL<br/>Validates X-Origin-Verify header]
+        Cognito[Cognito User Pool<br/>Username/password auth]
+    end
+
+    WAF --> ALB
+
+    subgraph VPC ["VPC"]
+        ALB[Application Load Balancer<br/>HTTPS with Cognito auth action]
+        ALB -- "Unauthenticated" --> Cognito
+        Cognito -- "Authenticated" --> ALB
+
+        subgraph ECS ["ECS Fargate"]
+            Frontend[Frontend Container<br/>React + nginx :80]
+            Backend[Backend Container<br/>FastAPI :8000]
+        end
+
+        ALB --> Frontend
+        Frontend --> Backend
+
+        EFS[(EFS<br/>ML Model Storage)]
+        Backend --> EFS
+    end
+
+    subgraph Registry ["Container Registry"]
+        ECR[ECR Repositories<br/>frontend + backend images]
+    end
+
+    ECR -.-> ECS
+
+    ACM[ACM Certificates<br/>*.creativitylabsai.com] -.-> CloudFront
+    ACM -.-> ALB
+
+    SSM[SSM Parameter Store<br/>Origin verify secret] -.-> CloudFront
+    SSM -.-> WAF
+```
+
+#### CloudFormation Stack Deployment Order
+
+```mermaid
+graph LR
+    S1[01 - ECR] --> S2[02 - EFS]
+    S2 --> S3[03 - ALB]
+    S3 --> S4[04 - IAM]
+    S4 --> S5[05 - Cluster]
+    S5 --> S6[06 - Service]
+    S6 --> S7[07 - Cognito]
+    S7 --> S8[08 - ALB Update<br/>+ WAF + Cognito]
+    S8 --> S9[09 - CloudFront<br/>+ Route 53]
+
+    style S7 fill:#f9f,stroke:#333
+    style S8 fill:#f9f,stroke:#333
+    style S9 fill:#f9f,stroke:#333
+```
+
+Steps 7-9 (highlighted) are optional and deploy automatically when `AppDomainName`, `CognitoDomainPrefix`, `HostedZoneId`, and `CloudFrontCertificateArn` are configured in `common-parameters.json`.
+
+#### Request Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CF as CloudFront
+    participant WAF as WAF WebACL
+    participant ALB as ALB
+    participant Cognito as Cognito
+    participant ECS as ECS Fargate
+
+    User->>CF: HTTPS request (cropper.creativitylabsai.com)
+    CF->>WAF: Forward + X-Origin-Verify header
+    WAF->>WAF: Validate header matches secret
+
+    alt Invalid or missing header
+        WAF-->>CF: 403 Forbidden
+        CF-->>User: 403 Forbidden
+    end
+
+    WAF->>ALB: Request passes WAF
+    ALB->>ALB: authenticate-cognito action
+
+    alt Not authenticated
+        ALB-->>User: 302 Redirect to Cognito login
+        User->>Cognito: Login with username/password
+        Cognito-->>User: 302 Redirect back with auth code
+        User->>CF: Follow redirect with auth code
+        CF->>WAF: Forward + header
+        WAF->>ALB: Pass
+        ALB->>ALB: Exchange code for session cookie
+    end
+
+    ALB->>ECS: Forward to target group
+    ECS-->>ALB: Response
+    ALB-->>CF: Response
+    CF-->>User: Response
 ```
 
 See [cloudformation/README.md](cloudformation/README.md) and [cloudformation/PARAMETERS.md](cloudformation/PARAMETERS.md) for full documentation.
@@ -470,11 +584,13 @@ ai-image-cropper-v2/
 ├── cloudformation/                # AWS CloudFormation templates
 │   ├── 01-ecr-repositories.yaml   # ECR container registries
 │   ├── 02-efs-storage.yaml        # Elastic File System
-│   ├── 03-load-balancer.yaml      # Application Load Balancer
+│   ├── 03-load-balancer.yaml      # ALB + WAF + Cognito auth
 │   ├── 04-iam-roles.yaml         # IAM roles for ECS
 │   ├── 05-ecs-cluster.yaml        # ECS Fargate cluster
 │   ├── 06-ecs-service.yaml        # ECS service and task definition
 │   ├── 07-ecs-application.yaml    # Alternate combined application template
+│   ├── 08-cognito.yaml            # Cognito User Pool (optional)
+│   ├── 09-cloudfront.yaml         # CloudFront + Route 53 (optional)
 │   ├── common-parameters.json.example  # Example parameters file
 │   ├── PARAMETERS.md              # Detailed parameter documentation
 │   └── README.md                  # CloudFormation deployment guide

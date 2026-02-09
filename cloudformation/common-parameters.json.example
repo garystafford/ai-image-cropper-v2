@@ -34,5 +34,21 @@
   {
     "ParameterKey": "DesiredCount",
     "ParameterValue": "1"
+  },
+  {
+    "ParameterKey": "AppDomainName",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "CognitoDomainPrefix",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "HostedZoneId",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "CloudFrontCertificateArn",
+    "ParameterValue": ""
   }
 ]

@@ -39,6 +39,10 @@ All deployment parameters are now in one file for easier management. The script 
 | **TaskCpu** | ECS Service | No | CPU units for ECS task (1024 = 1 vCPU) | `2048` | `2048` |
 | **TaskMemory** | ECS Service | No | Memory in MB for ECS task | `4096` | `4096` |
 | **DesiredCount** | ECS Service | No | Number of ECS tasks to run | `1` | `1` |
+| **AppDomainName** | Cognito, CloudFront | No | FQDN for the application (enables CloudFront + Cognito) | `app.example.com` | `""` |
+| **CognitoDomainPrefix** | Cognito | No | Prefix for Cognito hosted UI domain | `my-app` | `""` |
+| **HostedZoneId** | CloudFront | No | Route 53 hosted zone ID for DNS record | `Z0123456789ABC` | `""` |
+| **CloudFrontCertificateArn** | CloudFront | No | ACM certificate ARN for CloudFront (must be in us-east-1) | `arn:aws:acm:...` | `""` |
 
 ### How to Find AWS Resource IDs
 
@@ -90,19 +94,40 @@ For production deployments, you can add HTTPS support:
 
 #### AllowedCidr (Automatic)
 
-The deployment script automatically detects your public IP address and configures the ALB to only accept traffic from your IP with /32 CIDR.
+The deployment script automatically detects your public IP address and configures the ALB to only accept traffic from your IP with /32 CIDR. When CloudFront is configured, the CIDR rules are replaced by the CloudFront managed prefix list (see below).
 
-**How it works:**
+### CloudFront + Cognito Configuration (Optional)
 
-- Script queries AWS checkip service to get your current public IP
-- Automatically sets ALB security group to `YOUR.IP.ADD.RESS/32`
-- Provides better security by restricting access to only your location
-- No manual configuration needed
+To enable CloudFront CDN with Cognito authentication, set all four of these parameters:
 
-**If you need different access:**
+#### AppDomainName
 
-- To allow from multiple IPs, you'll need to manually update the ALB security group after deployment
-- To allow public access (not recommended), manually update the security group to `0.0.0.0/0`
+The fully qualified domain name for the application (e.g., `app.example.com`). Used as the CloudFront alternate domain name and the Cognito callback URL.
+
+#### CognitoDomainPrefix
+
+Prefix for the Cognito hosted UI domain. The full domain will be `<prefix>.auth.<region>.amazoncognito.com`. Must be globally unique across all AWS accounts.
+
+#### HostedZoneId
+
+Route 53 hosted zone ID where the A record alias to CloudFront will be created. The domain in this zone must match the `AppDomainName`.
+
+#### CloudFrontCertificateArn
+
+ACM certificate ARN for CloudFront HTTPS. Must be in us-east-1 (CloudFront requirement). Can be the same wildcard certificate used by the ALB if both are in us-east-1.
+
+#### How It Works
+
+When all four parameters are provided, the deploy script automatically:
+
+1. Creates a Cognito User Pool with admin-only registration
+2. Looks up the CloudFront managed prefix list (`com.amazonaws.global.cloudfront.origin-facing`)
+3. Updates the ALB security group to allow only CloudFront IPs (prefix list on port 443)
+4. Creates a WAF WebACL with origin verify header validation
+5. Deploys a CloudFront distribution with the custom origin header
+6. Creates a Route 53 A record alias to CloudFront
+
+The origin verify secret is auto-generated and stored in SSM Parameter Store.
 
 ### ECS Task Configuration
 
@@ -180,6 +205,22 @@ Here's a complete example configuration file:
   {
     "ParameterKey": "DesiredCount",
     "ParameterValue": "1"
+  },
+  {
+    "ParameterKey": "AppDomainName",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "CognitoDomainPrefix",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "HostedZoneId",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "CloudFrontCertificateArn",
+    "ParameterValue": ""
   }
 ]
 ```
@@ -205,6 +246,15 @@ The deployment script automatically handles the correct template order:
 
 6. **06-ecs-service.yaml** - ECS service and task definition
    - Parameters: ProjectName, Environment, SubnetIds, ECSSecurityGroupId, FrontendImageTag, BackendImageTag, TaskCpu, TaskMemory, DesiredCount
+
+7. **08-cognito.yaml** - Cognito User Pool (optional, when AppDomainName and CognitoDomainPrefix are set)
+   - Parameters: ProjectName, Environment, AppDomainName, CognitoDomainPrefix
+
+8. **03-load-balancer.yaml** (update) - Adds WAF, Cognito auth, and CloudFront prefix list to ALB
+   - Additional parameters: CognitoUserPoolArn, CognitoUserPoolClientId, CognitoUserPoolDomain, OriginVerifyHeaderValue, CloudFrontPrefixListId (all automatic)
+
+9. **09-cloudfront.yaml** - CloudFront distribution and Route 53 DNS (optional, when AppDomainName, HostedZoneId, and CloudFrontCertificateArn are set)
+   - Parameters: ProjectName, Environment, AppDomainName, HostedZoneId, CloudFrontCertificateArn, OriginVerifyHeaderValue (automatic)
 
 ## First Deployment Workflow
 

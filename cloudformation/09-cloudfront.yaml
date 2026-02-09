@@ -1,0 +1,129 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AI Image Cropper v2 - CloudFront Distribution (Step 9 - CDN and DNS)'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: ai-image-cropper-v2
+    Description: Project name used for naming resources
+    AllowedPattern: '[a-zA-Z0-9-]+'
+    ConstraintDescription: Must contain only alphanumeric characters and hyphens
+
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues: [dev, staging, prod]
+    Description: Environment name
+
+  AppDomainName:
+    Type: String
+    Description: >
+      Fully qualified domain name for the application
+      (e.g., cropper.creativitylabsai.com)
+
+  HostedZoneId:
+    Type: String
+    Description: Route 53 hosted zone ID for the domain
+
+  CloudFrontCertificateArn:
+    Type: String
+    Description: >
+      ACM certificate ARN for CloudFront HTTPS. Must be in us-east-1.
+      Can be the same wildcard certificate used by the ALB if both
+      are deployed in us-east-1.
+
+  OriginVerifyHeaderValue:
+    Type: String
+    NoEcho: true
+    Description: >
+      Secret value sent as the X-Origin-Verify header to the ALB origin.
+      The ALB's WAF WebACL validates this header to ensure requests
+      only come through CloudFront.
+
+Resources:
+  # ========================================
+  # CloudFront Distribution
+  # ========================================
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub '${ProjectName}-${Environment} - Application CDN'
+        Aliases:
+          - !Ref AppDomainName
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CloudFrontCertificateArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        DefaultCacheBehavior:
+          TargetOriginId: alb-origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+            - PUT
+            - PATCH
+            - POST
+            - DELETE
+          CachedMethods:
+            - GET
+            - HEAD
+          # CachingDisabled - no caching for dynamic application
+          CachePolicyId: '4135ea2d-6df8-44a3-9df3-4b5a84be39ad'
+          # AllViewer - forwards all headers (including Host), cookies, and query strings
+          OriginRequestPolicyId: '216adef6-5c7f-47e4-b989-5492eafa07d3'
+          Compress: true
+        Origins:
+          - Id: alb-origin
+            DomainName:
+              Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-DNS'
+            CustomOriginConfig:
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
+            OriginCustomHeaders:
+              - HeaderName: X-Origin-Verify
+                HeaderValue: !Ref OriginVerifyHeaderValue
+        HttpVersion: http2and3
+        PriceClass: PriceClass_100
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ========================================
+  # Route 53 DNS Record (A record ALIAS to CloudFront)
+  # ========================================
+  DNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref AppDomainName
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt CloudFrontDistribution.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2  # CloudFront hosted zone ID (global constant)
+
+# ========================================
+# Outputs
+# ========================================
+Outputs:
+  CloudFrontDistributionId:
+    Description: ID of the CloudFront distribution
+    Value: !Ref CloudFrontDistribution
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-CF-Distribution-ID'
+
+  CloudFrontDomainName:
+    Description: Domain name of the CloudFront distribution
+    Value: !GetAtt CloudFrontDistribution.DomainName
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-CF-Domain'
+
+  ApplicationURL:
+    Description: URL to access the application via CloudFront
+    Value: !Sub 'https://${AppDomainName}'

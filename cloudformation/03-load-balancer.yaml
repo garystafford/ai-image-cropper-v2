@@ -18,11 +18,11 @@ Parameters:
   VpcId:
     Type: AWS::EC2::VPC::Id
     Description: VPC ID where ALB will be deployed
-    
+
   SubnetIds:
     Type: List<AWS::EC2::Subnet::Id>
     Description: List of public subnet IDs for ALB (minimum 2 subnets in different AZs)
-    
+
   CertificateArn:
     Type: String
     Description: |
@@ -33,7 +33,7 @@ Parameters:
       4. For cross-account certificates, must first share or recreate in this account
       Note: Certificate must be in the same region as this deployment
     Default: ''
-    
+
   AllowedCidr:
     Type: String
     Default: '0.0.0.0/0'
@@ -44,11 +44,74 @@ Parameters:
     Type: AWS::EC2::SecurityGroup::Id
     Description: Existing security group ID for ECS tasks
 
+  # --- Optional: Cognito authentication ---
+  CognitoUserPoolArn:
+    Type: String
+    Default: ''
+    Description: >
+      ARN of the Cognito User Pool for ALB authentication.
+      Leave empty to disable Cognito authentication on the HTTPS listener.
+
+  CognitoUserPoolClientId:
+    Type: String
+    Default: ''
+    Description: >
+      App Client ID from the Cognito User Pool.
+      Required when CognitoUserPoolArn is provided.
+
+  CognitoUserPoolDomain:
+    Type: String
+    Default: ''
+    Description: >
+      Full domain of the Cognito hosted UI
+      (e.g., my-prefix.auth.us-east-1.amazoncognito.com).
+      Required when CognitoUserPoolArn is provided.
+
+  # --- Optional: WAF origin verification ---
+  OriginVerifyHeaderValue:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: >
+      Secret value for the X-Origin-Verify header sent by CloudFront.
+      When provided, a WAF WebACL is created to block requests without
+      this header, ensuring only CloudFront can reach the ALB.
+
+  # --- Optional: CloudFront prefix list ---
+  CloudFrontPrefixListId:
+    Type: String
+    Default: ''
+    Description: >
+      Managed prefix list ID for CloudFront origin-facing IPs
+      (com.amazonaws.global.cloudfront.origin-facing).
+      When provided, SG ingress rules allow HTTPS from CloudFront IPs.
+
 Conditions:
-  HasCertificate: !Not 
-    - !Equals 
+  HasCertificate: !Not
+    - !Equals
       - !Ref CertificateArn
-      - ""
+      - ''
+
+  HasCognito: !And
+    - !Not
+      - !Equals
+        - !Ref CognitoUserPoolArn
+        - ''
+    - !Condition HasCertificate
+
+  HasOriginVerify: !Not
+    - !Equals
+      - !Ref OriginVerifyHeaderValue
+      - ''
+
+  HasCloudFrontPrefixList: !Not
+    - !Equals
+      - !Ref CloudFrontPrefixListId
+      - ''
+
+  NoPrefixList: !Equals
+    - !Ref CloudFrontPrefixListId
+    - ''
 
 Resources:
   # ========================================
@@ -60,17 +123,6 @@ Resources:
       GroupName: !Sub '${ProjectName}-alb-sg-${Environment}'
       GroupDescription: Security group for Application Load Balancer
       VpcId: !Ref VpcId
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: !Ref AllowedCidr
-          Description: HTTP traffic from internet
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: !Ref AllowedCidr
-          Description: HTTPS traffic from internet
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-alb-sg-${Environment}'
@@ -78,6 +130,41 @@ Resources:
           Value: !Ref ProjectName
         - Key: Environment
           Value: !Ref Environment
+
+  # --- SG Ingress: Deployer IP (CIDR) - only when CloudFront is NOT configured ---
+  ALBIngressHTTPFromCidr:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: NoPrefixList
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIp: !Ref AllowedCidr
+      Description: HTTP traffic from allowed CIDR
+
+  ALBIngressHTTPSFromCidr:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: NoPrefixList
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: !Ref AllowedCidr
+      Description: HTTPS traffic from allowed CIDR
+
+  # --- SG Ingress: CloudFront prefix list (HTTPS only) ---
+  ALBIngressHTTPSFromCloudFront:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasCloudFrontPrefixList
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourcePrefixListId: !Ref CloudFrontPrefixListId
+      Description: HTTPS traffic from CloudFront edge locations
 
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -120,16 +207,26 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
+  # --- HTTP Listener ---
+  # Redirects to HTTPS when certificate exists, otherwise forwards to target group
   HTTPListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       LoadBalancerArn: !Ref ApplicationLoadBalancer
       Protocol: HTTP
       Port: 80
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref TargetGroup
+      DefaultActions: !If
+        - HasCertificate
+        - - Type: redirect
+            RedirectConfig:
+              Protocol: HTTPS
+              Port: '443'
+              StatusCode: HTTP_301
+        - - Type: forward
+            TargetGroupArn: !Ref TargetGroup
 
+  # --- HTTPS Listener ---
+  # Authenticates with Cognito when enabled, otherwise forwards directly
   HTTPSListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Condition: HasCertificate
@@ -139,9 +236,70 @@ Resources:
       Port: 443
       Certificates:
         - CertificateArn: !Ref CertificateArn
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref TargetGroup
+      DefaultActions: !If
+        - HasCognito
+        - - Type: authenticate-cognito
+            Order: 1
+            AuthenticateCognitoConfig:
+              UserPoolArn: !Ref CognitoUserPoolArn
+              UserPoolClientId: !Ref CognitoUserPoolClientId
+              UserPoolDomain: !Ref CognitoUserPoolDomain
+              OnUnauthenticatedRequest: authenticate
+              Scope: openid
+              SessionTimeout: 43200
+          - Type: forward
+            Order: 2
+            TargetGroupArn: !Ref TargetGroup
+        - - Type: forward
+            TargetGroupArn: !Ref TargetGroup
+
+  # ========================================
+  # AWS WAF - Origin Verification (Optional)
+  # ========================================
+  OriginVerifyWebACL:
+    Type: AWS::WAFv2::WebACL
+    Condition: HasOriginVerify
+    Properties:
+      Name: !Sub '${ProjectName}-origin-verify-${Environment}'
+      Scope: REGIONAL
+      DefaultAction:
+        Block: {}
+      Description: !Sub 'Blocks requests not originating from CloudFront for ${ProjectName}'
+      Rules:
+        - Name: verify-origin-header
+          Priority: 0
+          Action:
+            Allow: {}
+          Statement:
+            ByteMatchStatement:
+              FieldToMatch:
+                SingleHeader:
+                  Name: x-origin-verify
+              PositionalConstraint: EXACTLY
+              SearchString: !Ref OriginVerifyHeaderValue
+              TextTransformations:
+                - Priority: 0
+                  Type: NONE
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: !Sub '${ProjectName}-origin-verify-rule-${Environment}'
+            SampledRequestsEnabled: true
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub '${ProjectName}-waf-${Environment}'
+        SampledRequestsEnabled: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  OriginVerifyWebACLAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Condition: HasOriginVerify
+    Properties:
+      ResourceArn: !Ref ApplicationLoadBalancer
+      WebACLArn: !GetAtt OriginVerifyWebACL.Arn
 
   # Security Group Rule to allow ALB traffic to ECS tasks
   ECSSecurityGroupIngressRule:
@@ -190,3 +348,8 @@ Outputs:
     Condition: HasCertificate
     Description: HTTPS URL to access the application
     Value: !Sub 'https://${ApplicationLoadBalancer.DNSName}'
+
+  WebACLArn:
+    Condition: HasOriginVerify
+    Description: ARN of the WAF WebACL protecting the ALB
+    Value: !GetAtt OriginVerifyWebACL.Arn

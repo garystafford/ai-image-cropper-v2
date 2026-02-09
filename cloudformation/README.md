@@ -14,11 +14,13 @@ This directory contains CloudFormation templates and deployment scripts for the 
 
 - `01-ecr-repositories.yaml` - ECR repositories for frontend and backend images
 - `02-efs-storage.yaml` - EFS file system for shared storage
-- `03-load-balancer.yaml` - Application Load Balancer with HTTP/HTTPS listeners
+- `03-load-balancer.yaml` - ALB, security group, WAF WebACL, and Cognito auth listener
 - `04-iam-roles.yaml` - IAM execution and task roles for ECS
 - `05-ecs-cluster.yaml` - ECS Fargate cluster and CloudWatch log group
 - `06-ecs-service.yaml` - ECS service and task definition
 - `07-ecs-application.yaml` - Alternate combined application template
+- `08-cognito.yaml` - Cognito User Pool for authentication (optional)
+- `09-cloudfront.yaml` - CloudFront distribution and Route 53 DNS (optional)
 
 ### Configuration and Scripts
 
@@ -43,7 +45,7 @@ cd ..
 ./deploy-cloudformation.sh
 ```
 
-The script will deploy all 6 CloudFormation stacks in order, automatically detecting whether to create or update each stack.
+The script deploys up to 9 CloudFormation stacks in order, automatically detecting whether to create or update each stack. Steps 7-9 (Cognito, ALB update, CloudFront) deploy automatically when `AppDomainName`, `CognitoDomainPrefix`, `HostedZoneId`, and `CloudFrontCertificateArn` are configured in `common-parameters.json`.
 
 ## Configuration
 
@@ -65,6 +67,8 @@ The script creates stacks with the naming convention `${PROJECT_NAME}-${COMPONEN
 - `ai-image-cropper-v2-iam-prod`
 - `ai-image-cropper-v2-cluster-prod`
 - `ai-image-cropper-v2-service-prod`
+- `ai-image-cropper-v2-cognito-prod` (optional)
+- `ai-image-cropper-v2-cloudfront-prod` (optional)
 
 ## Manual Deployment (Alternative)
 
@@ -116,6 +120,14 @@ aws cloudformation update-stack \
 To remove all infrastructure, delete in reverse order:
 
 ```bash
+# Optional stacks (if deployed)
+aws cloudformation delete-stack --stack-name ai-image-cropper-v2-cloudfront-prod --region us-east-1
+aws cloudformation wait stack-delete-complete --stack-name ai-image-cropper-v2-cloudfront-prod --region us-east-1
+
+aws cloudformation delete-stack --stack-name ai-image-cropper-v2-cognito-prod --region us-east-1
+aws cloudformation wait stack-delete-complete --stack-name ai-image-cropper-v2-cognito-prod --region us-east-1
+
+# Core stacks
 aws cloudformation delete-stack --stack-name ai-image-cropper-v2-service-prod --region us-east-1
 aws cloudformation wait stack-delete-complete --stack-name ai-image-cropper-v2-service-prod --region us-east-1
 
@@ -181,9 +193,24 @@ This script builds both frontend and backend images, pushes to ECR, registers a 
 - ECR repositories have image scanning enabled on push
 - ECR lifecycle policy keeps only the last 10 images
 - EFS file system is encrypted at rest with transit encryption (TLS)
-- ALB security group restricts access to deployer's IP address
 - Deployment circuit breaker enabled with automatic rollback
 - `common-parameters.json` is gitignored to prevent committing real AWS resource IDs
+
+### ALB Access Control (without CloudFront)
+
+When CloudFront is not configured, the ALB security group restricts inbound traffic to the deployer's IP address (`/32` CIDR), detected automatically at deploy time.
+
+### ALB Access Control (with CloudFront)
+
+When CloudFront is configured, a defense-in-depth model restricts ALB access:
+
+1. **Security group**: Only allows HTTPS (port 443) from the CloudFront managed prefix list (`com.amazonaws.global.cloudfront.origin-facing`). No CIDR rules, no `0.0.0.0/0`.
+2. **WAF WebACL**: Validates a secret `X-Origin-Verify` header on every request. Requests without the correct header are blocked with 403. The secret is stored in SSM Parameter Store and shared between CloudFront (origin custom header) and WAF.
+3. **Cognito authentication**: ALB `authenticate-cognito` listener action requires users to log in via Cognito Hosted UI before reaching the application. The user pool is admin-only (no self-registration).
+
+### Origin Verify Secret
+
+The deploy script automatically generates a UUID secret on first run and stores it in SSM Parameter Store (`/${PROJECT_NAME}/${ENVIRONMENT}/origin-verify-secret`). On subsequent runs, it retrieves the existing secret. The secret is passed to both the ALB WAF and CloudFront origin as a `NoEcho` parameter.
 
 ## Cost Considerations
 
@@ -191,4 +218,7 @@ This script builds both frontend and backend images, pushes to ECR, registers a 
 - **EFS**: Storage costs (~$0.30/GB/month for standard storage)
 - **ECS Fargate**: CPU/memory based pricing (~$0.04/vCPU/hour, ~$0.004/GB/hour)
 - **ALB**: ~$0.02/hour + data processing charges
+- **CloudFront**: ~$0.085/GB data transfer (NA/EU), no minimum commitment
+- **WAF**: ~$5/month (WebACL + rule) + $0.60/million requests
+- **Cognito**: Free tier covers 50,000 monthly active users
 - **Data Transfer**: Minimal costs for in-region transfers
