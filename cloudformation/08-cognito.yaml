@@ -36,6 +36,7 @@ Resources:
   # ========================================
   UserPool:
     Type: AWS::Cognito::UserPool
+    DeletionPolicy: Retain
     Properties:
       UserPoolName: !Sub '${ProjectName}-users-${Environment}'
       AdminCreateUserConfig:

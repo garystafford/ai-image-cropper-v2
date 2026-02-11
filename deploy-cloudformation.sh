@@ -317,29 +317,25 @@ if check_stack_exists "$STACK_NAME_ECR"; then
     CURRENT_STATUS=$(get_stack_status "$STACK_NAME_ECR")
     print_info "Stack $STACK_NAME_ECR exists with status: $CURRENT_STATUS"
 
-    if is_stack_complete "$STACK_NAME_ECR"; then
-        print_success "Stack $STACK_NAME_ECR is already in a completed state. Skipping deployment."
-    else
-        print_info "Stack $STACK_NAME_ECR needs updating..."
-        OPERATION="update"
+    print_info "Updating stack $STACK_NAME_ECR..."
+    OPERATION="update"
 
-        aws cloudformation update-stack \
-            --stack-name "$STACK_NAME_ECR" \
-            --template-body "file://$TEMPLATE_DIR/01-ecr-repositories.yaml" \
-            --parameters \
-                ParameterKey=ProjectName,ParameterValue="$PROJECT_NAME" \
-                ParameterKey=Environment,ParameterValue="$ENVIRONMENT" \
-            --region "$REGION" \
-            --capabilities CAPABILITY_IAM \
-            2>/dev/null || {
-                if [[ $? -eq 254 ]]; then
-                    print_info "No updates to be performed on $STACK_NAME_ECR"
-                    OPERATION=""
-                else
-                    print_error "Failed to update stack $STACK_NAME_ECR"
-                    exit 1
-                fi
-            }
+    rc=0
+    aws cloudformation update-stack \
+        --stack-name "$STACK_NAME_ECR" \
+        --template-body "file://$TEMPLATE_DIR/01-ecr-repositories.yaml" \
+        --parameters \
+            ParameterKey=ProjectName,ParameterValue="$PROJECT_NAME" \
+            ParameterKey=Environment,ParameterValue="$ENVIRONMENT" \
+        --region "$REGION" \
+        --capabilities CAPABILITY_IAM \
+        2>/dev/null || rc=$?
+    if [[ $rc -eq 254 ]]; then
+        print_info "No updates to be performed on $STACK_NAME_ECR"
+        OPERATION=""
+    elif [[ $rc -ne 0 ]]; then
+        print_error "Failed to update stack $STACK_NAME_ECR"
+        exit 1
     fi
 else
     print_info "Creating stack $STACK_NAME_ECR..."
@@ -391,27 +387,23 @@ if check_stack_exists "$STACK_NAME_EFS"; then
     CURRENT_STATUS=$(get_stack_status "$STACK_NAME_EFS")
     print_info "Stack $STACK_NAME_EFS exists with status: $CURRENT_STATUS"
 
-    if is_stack_complete "$STACK_NAME_EFS"; then
-        print_success "Stack $STACK_NAME_EFS is already in a completed state. Skipping deployment."
-    else
-        print_info "Stack $STACK_NAME_EFS needs updating..."
-        OPERATION="update"
+    print_info "Updating stack $STACK_NAME_EFS..."
+    OPERATION="update"
 
-        aws cloudformation update-stack \
-            --stack-name "$STACK_NAME_EFS" \
-            --template-body "file://$TEMPLATE_DIR/02-efs-storage.yaml" \
-            --parameters "file://$TEMP_PARAMS_FILE" \
-            --region "$REGION" \
-            --capabilities CAPABILITY_IAM \
-            2>/dev/null || {
-                if [[ $? -eq 254 ]]; then
-                    print_info "No updates to be performed on $STACK_NAME_EFS"
-                    OPERATION=""
-                else
-                    print_error "Failed to update stack $STACK_NAME_EFS"
-                    exit 1
-                fi
-            }
+    rc=0
+    aws cloudformation update-stack \
+        --stack-name "$STACK_NAME_EFS" \
+        --template-body "file://$TEMPLATE_DIR/02-efs-storage.yaml" \
+        --parameters "file://$TEMP_PARAMS_FILE" \
+        --region "$REGION" \
+        --capabilities CAPABILITY_IAM \
+        2>/dev/null || rc=$?
+    if [[ $rc -eq 254 ]]; then
+        print_info "No updates to be performed on $STACK_NAME_EFS"
+        OPERATION=""
+    elif [[ $rc -ne 0 ]]; then
+        print_error "Failed to update stack $STACK_NAME_EFS"
+        exit 1
     fi
 else
     print_info "Creating stack $STACK_NAME_EFS..."
@@ -473,27 +465,23 @@ if check_stack_exists "$STACK_NAME_ALB"; then
     CURRENT_STATUS=$(get_stack_status "$STACK_NAME_ALB")
     print_info "Stack $STACK_NAME_ALB exists with status: $CURRENT_STATUS"
 
-    if is_stack_complete "$STACK_NAME_ALB"; then
-        print_success "Stack $STACK_NAME_ALB is already in a completed state. Skipping deployment."
-    else
-        print_info "Stack $STACK_NAME_ALB needs updating..."
-        OPERATION="update"
+    print_info "Updating stack $STACK_NAME_ALB..."
+    OPERATION="update"
 
-        aws cloudformation update-stack \
-            --stack-name "$STACK_NAME_ALB" \
-            --template-body "file://$TEMPLATE_DIR/03-load-balancer.yaml" \
-            --parameters "file://$TEMP_ALB_PARAMS_FILE" \
-            --region "$REGION" \
-            --capabilities CAPABILITY_IAM \
-            2>/dev/null || {
-                if [[ $? -eq 254 ]]; then
-                    print_info "No updates to be performed on $STACK_NAME_ALB"
-                    OPERATION=""
-                else
-                    print_error "Failed to update stack $STACK_NAME_ALB"
-                    exit 1
-                fi
-            }
+    rc=0
+    aws cloudformation update-stack \
+        --stack-name "$STACK_NAME_ALB" \
+        --template-body "file://$TEMPLATE_DIR/03-load-balancer.yaml" \
+        --parameters "file://$TEMP_ALB_PARAMS_FILE" \
+        --region "$REGION" \
+        --capabilities CAPABILITY_IAM \
+        2>/dev/null || rc=$?
+    if [[ $rc -eq 254 ]]; then
+        print_info "No updates to be performed on $STACK_NAME_ALB"
+        OPERATION=""
+    elif [[ $rc -ne 0 ]]; then
+        print_error "Failed to update stack $STACK_NAME_ALB"
+        exit 1
     fi
 else
     print_info "Creating stack $STACK_NAME_ALB..."
@@ -531,29 +519,25 @@ if check_stack_exists "$STACK_NAME_IAM"; then
     CURRENT_STATUS=$(get_stack_status "$STACK_NAME_IAM")
     print_info "Stack $STACK_NAME_IAM exists with status: $CURRENT_STATUS"
 
-    if is_stack_complete "$STACK_NAME_IAM"; then
-        print_success "Stack $STACK_NAME_IAM is already in a completed state. Skipping deployment."
-    else
-        print_info "Stack $STACK_NAME_IAM needs updating..."
-        OPERATION="update"
+    print_info "Updating stack $STACK_NAME_IAM..."
+    OPERATION="update"
 
-        aws cloudformation update-stack \
-            --stack-name "$STACK_NAME_IAM" \
-            --template-body "file://$TEMPLATE_DIR/04-iam-roles.yaml" \
-            --parameters \
-                ParameterKey=ProjectName,ParameterValue="$PROJECT_NAME" \
-                ParameterKey=Environment,ParameterValue="$ENVIRONMENT" \
-            --region "$REGION" \
-            --capabilities CAPABILITY_NAMED_IAM \
-            2>/dev/null || {
-                if [[ $? -eq 254 ]]; then
-                    print_info "No updates to be performed on $STACK_NAME_IAM"
-                    OPERATION=""
-                else
-                    print_error "Failed to update stack $STACK_NAME_IAM"
-                    exit 1
-                fi
-            }
+    rc=0
+    aws cloudformation update-stack \
+        --stack-name "$STACK_NAME_IAM" \
+        --template-body "file://$TEMPLATE_DIR/04-iam-roles.yaml" \
+        --parameters \
+            ParameterKey=ProjectName,ParameterValue="$PROJECT_NAME" \
+            ParameterKey=Environment,ParameterValue="$ENVIRONMENT" \
+        --region "$REGION" \
+        --capabilities CAPABILITY_NAMED_IAM \
+        2>/dev/null || rc=$?
+    if [[ $rc -eq 254 ]]; then
+        print_info "No updates to be performed on $STACK_NAME_IAM"
+        OPERATION=""
+    elif [[ $rc -ne 0 ]]; then
+        print_error "Failed to update stack $STACK_NAME_IAM"
+        exit 1
     fi
 else
     print_info "Creating stack $STACK_NAME_IAM..."
@@ -593,29 +577,25 @@ if check_stack_exists "$STACK_NAME_CLUSTER"; then
     CURRENT_STATUS=$(get_stack_status "$STACK_NAME_CLUSTER")
     print_info "Stack $STACK_NAME_CLUSTER exists with status: $CURRENT_STATUS"
 
-    if is_stack_complete "$STACK_NAME_CLUSTER"; then
-        print_success "Stack $STACK_NAME_CLUSTER is already in a completed state. Skipping deployment."
-    else
-        print_info "Stack $STACK_NAME_CLUSTER needs updating..."
-        OPERATION="update"
+    print_info "Updating stack $STACK_NAME_CLUSTER..."
+    OPERATION="update"
 
-        aws cloudformation update-stack \
-            --stack-name "$STACK_NAME_CLUSTER" \
-            --template-body "file://$TEMPLATE_DIR/05-ecs-cluster.yaml" \
-            --parameters \
-                ParameterKey=ProjectName,ParameterValue="$PROJECT_NAME" \
-                ParameterKey=Environment,ParameterValue="$ENVIRONMENT" \
-            --region "$REGION" \
-            --capabilities CAPABILITY_IAM \
-            2>/dev/null || {
-                if [[ $? -eq 254 ]]; then
-                    print_info "No updates to be performed on $STACK_NAME_CLUSTER"
-                    OPERATION=""
-                else
-                    print_error "Failed to update stack $STACK_NAME_CLUSTER"
-                    exit 1
-                fi
-            }
+    rc=0
+    aws cloudformation update-stack \
+        --stack-name "$STACK_NAME_CLUSTER" \
+        --template-body "file://$TEMPLATE_DIR/05-ecs-cluster.yaml" \
+        --parameters \
+            ParameterKey=ProjectName,ParameterValue="$PROJECT_NAME" \
+            ParameterKey=Environment,ParameterValue="$ENVIRONMENT" \
+        --region "$REGION" \
+        --capabilities CAPABILITY_IAM \
+        2>/dev/null || rc=$?
+    if [[ $rc -eq 254 ]]; then
+        print_info "No updates to be performed on $STACK_NAME_CLUSTER"
+        OPERATION=""
+    elif [[ $rc -ne 0 ]]; then
+        print_error "Failed to update stack $STACK_NAME_CLUSTER"
+        exit 1
     fi
 else
     print_info "Creating stack $STACK_NAME_CLUSTER..."
@@ -660,27 +640,23 @@ if check_stack_exists "$STACK_NAME_SERVICE"; then
     CURRENT_STATUS=$(get_stack_status "$STACK_NAME_SERVICE")
     print_info "Stack $STACK_NAME_SERVICE exists with status: $CURRENT_STATUS"
 
-    if is_stack_complete "$STACK_NAME_SERVICE"; then
-        print_success "Stack $STACK_NAME_SERVICE is already in a completed state. Skipping deployment."
-    else
-        print_info "Stack $STACK_NAME_SERVICE needs updating..."
-        OPERATION="update"
+    print_info "Updating stack $STACK_NAME_SERVICE..."
+    OPERATION="update"
 
-        aws cloudformation update-stack \
-            --stack-name "$STACK_NAME_SERVICE" \
-            --template-body "file://$TEMPLATE_DIR/06-ecs-service.yaml" \
-            --parameters "file://$TEMP_ECS_PARAMS_FILE" \
-            --region "$REGION" \
-            --capabilities CAPABILITY_IAM \
-            2>/dev/null || {
-                if [[ $? -eq 254 ]]; then
-                    print_info "No updates to be performed on $STACK_NAME_SERVICE"
-                    OPERATION=""
-                else
-                    print_error "Failed to update stack $STACK_NAME_SERVICE"
-                    exit 1
-                fi
-            }
+    rc=0
+    aws cloudformation update-stack \
+        --stack-name "$STACK_NAME_SERVICE" \
+        --template-body "file://$TEMPLATE_DIR/06-ecs-service.yaml" \
+        --parameters "file://$TEMP_ECS_PARAMS_FILE" \
+        --region "$REGION" \
+        --capabilities CAPABILITY_IAM \
+        2>/dev/null || rc=$?
+    if [[ $rc -eq 254 ]]; then
+        print_info "No updates to be performed on $STACK_NAME_SERVICE"
+        OPERATION=""
+    elif [[ $rc -ne 0 ]]; then
+        print_error "Failed to update stack $STACK_NAME_SERVICE"
+        exit 1
     fi
 else
     print_info "Creating stack $STACK_NAME_SERVICE..."
@@ -727,27 +703,23 @@ elif [[ "$ENABLE_COGNITO" == true ]]; then
         CURRENT_STATUS=$(get_stack_status "$STACK_NAME_COGNITO")
         print_info "Stack $STACK_NAME_COGNITO exists with status: $CURRENT_STATUS"
 
-        if is_stack_complete "$STACK_NAME_COGNITO"; then
-            print_success "Stack $STACK_NAME_COGNITO is already in a completed state. Skipping deployment."
-        else
-            print_info "Stack $STACK_NAME_COGNITO needs updating..."
-            OPERATION="update"
+        print_info "Updating stack $STACK_NAME_COGNITO..."
+        OPERATION="update"
 
-            aws cloudformation update-stack \
-                --stack-name "$STACK_NAME_COGNITO" \
-                --template-body "file://$TEMPLATE_DIR/08-cognito.yaml" \
-                --parameters "file://$TEMP_COGNITO_PARAMS_FILE" \
-                --region "$REGION" \
-                --capabilities CAPABILITY_IAM \
-                2>/dev/null || {
-                    if [[ $? -eq 254 ]]; then
-                        print_info "No updates to be performed on $STACK_NAME_COGNITO"
-                        OPERATION=""
-                    else
-                        print_error "Failed to update stack $STACK_NAME_COGNITO"
-                        exit 1
-                    fi
-                }
+        rc=0
+        aws cloudformation update-stack \
+            --stack-name "$STACK_NAME_COGNITO" \
+            --template-body "file://$TEMPLATE_DIR/08-cognito.yaml" \
+            --parameters "file://$TEMP_COGNITO_PARAMS_FILE" \
+            --region "$REGION" \
+            --capabilities CAPABILITY_IAM \
+            2>/dev/null || rc=$?
+        if [[ $rc -eq 254 ]]; then
+            print_info "No updates to be performed on $STACK_NAME_COGNITO"
+            OPERATION=""
+        elif [[ $rc -ne 0 ]]; then
+            print_error "Failed to update stack $STACK_NAME_COGNITO"
+            exit 1
         fi
     else
         print_info "Creating stack $STACK_NAME_COGNITO..."
@@ -963,27 +935,23 @@ EOF
         CURRENT_STATUS=$(get_stack_status "$STACK_NAME_CF")
         print_info "Stack $STACK_NAME_CF exists with status: $CURRENT_STATUS"
 
-        if is_stack_complete "$STACK_NAME_CF"; then
-            print_success "Stack $STACK_NAME_CF is already in a completed state. Skipping deployment."
-        else
-            print_info "Stack $STACK_NAME_CF needs updating..."
-            OPERATION="update"
+        print_info "Updating stack $STACK_NAME_CF..."
+        OPERATION="update"
 
-            aws cloudformation update-stack \
-                --stack-name "$STACK_NAME_CF" \
-                --template-body "file://$TEMPLATE_DIR/09-cloudfront.yaml" \
-                --parameters "file://$TEMP_CF_PARAMS_FILE" \
-                --region "$REGION" \
-                --capabilities CAPABILITY_IAM \
-                2>/dev/null || {
-                    if [[ $? -eq 254 ]]; then
-                        print_info "No updates to be performed on $STACK_NAME_CF"
-                        OPERATION=""
-                    else
-                        print_error "Failed to update stack $STACK_NAME_CF"
-                        exit 1
-                    fi
-                }
+        rc=0
+        aws cloudformation update-stack \
+            --stack-name "$STACK_NAME_CF" \
+            --template-body "file://$TEMPLATE_DIR/09-cloudfront.yaml" \
+            --parameters "file://$TEMP_CF_PARAMS_FILE" \
+            --region "$REGION" \
+            --capabilities CAPABILITY_IAM \
+            2>/dev/null || rc=$?
+        if [[ $rc -eq 254 ]]; then
+            print_info "No updates to be performed on $STACK_NAME_CF"
+            OPERATION=""
+        elif [[ $rc -ne 0 ]]; then
+            print_error "Failed to update stack $STACK_NAME_CF"
+            exit 1
         fi
     else
         print_info "Creating stack $STACK_NAME_CF..."

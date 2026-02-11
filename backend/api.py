@@ -187,12 +187,14 @@ async def process_image(
     input_path = UPLOAD_DIR / f"{file_id}{file_extension}"
 
     try:
-        content = await file.read()
-        if len(content) > MAX_UPLOAD_SIZE:
-            raise HTTPException(
-                status_code=413,
-                detail="File too large. Maximum upload size is 100 MB.",
-            )
+        content = bytearray()
+        while chunk := await file.read(8192):
+            content.extend(chunk)
+            if len(content) > MAX_UPLOAD_SIZE:
+                raise HTTPException(
+                    status_code=413,
+                    detail="File too large. Maximum upload size is 100 MB.",
+                )
         with input_path.open("wb") as f:
             f.write(content)
 
@@ -406,12 +408,15 @@ async def process_image(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Error processing image")
         raise HTTPException(
             status_code=500,
             detail="An internal error occurred while processing the image.",
         )
+    finally:
+        if input_path.exists():
+            input_path.unlink(missing_ok=True)
 
 
 @app.post("/api/batch-crop")
@@ -450,12 +455,14 @@ async def batch_crop(
     input_path = UPLOAD_DIR / f"{file_id}{file_extension}"
 
     try:
-        content = await file.read()
-        if len(content) > MAX_UPLOAD_SIZE:
-            raise HTTPException(
-                status_code=413,
-                detail="File too large. Maximum upload size is 100 MB.",
-            )
+        content = bytearray()
+        while chunk := await file.read(8192):
+            content.extend(chunk)
+            if len(content) > MAX_UPLOAD_SIZE:
+                raise HTTPException(
+                    status_code=413,
+                    detail="File too large. Maximum upload size is 100 MB.",
+                )
         with input_path.open("wb") as f:
             f.write(content)
 
@@ -538,12 +545,15 @@ async def batch_crop(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("Batch crop error")
         raise HTTPException(
             status_code=500,
             detail="An internal error occurred during batch cropping.",
         )
+    finally:
+        if input_path.exists():
+            input_path.unlink(missing_ok=True)
 
 
 @app.post("/api/cli-process")
@@ -585,17 +595,19 @@ async def cli_process_image(
     input_path = UPLOAD_DIR / f"{file_id}{file_extension}"
 
     try:
-        content = await file.read()
-        if len(content) > MAX_UPLOAD_SIZE:
-            raise HTTPException(
-                status_code=413,
-                detail="File too large. Maximum upload size is 100 MB.",
-            )
+        content = bytearray()
+        while chunk := await file.read(8192):
+            content.extend(chunk)
+            if len(content) > MAX_UPLOAD_SIZE:
+                raise HTTPException(
+                    status_code=413,
+                    detail="File too large. Maximum upload size is 100 MB.",
+                )
         with input_path.open("wb") as f:
             f.write(content)
 
         # Create cropper instance
-        cropper = ImageCropper(str(input_path), debug=debug)
+        cropper = ImageCropper(str(input_path), debug=False)
         cropper.load_image()
 
         # Build output text (mimics CLI output)
@@ -874,12 +886,15 @@ async def cli_process_image(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logger.exception("CLI processing error")
         raise HTTPException(
             status_code=500,
             detail="An internal error occurred during CLI processing.",
         )
+    finally:
+        if input_path.exists():
+            input_path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

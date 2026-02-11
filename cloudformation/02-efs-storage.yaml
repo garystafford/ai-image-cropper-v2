@@ -33,6 +33,7 @@ Resources:
   # ========================================
   EFSFileSystem:
     Type: AWS::EFS::FileSystem
+    DeletionPolicy: Retain
     Properties:
       PerformanceMode: generalPurpose
       ThroughputMode: bursting

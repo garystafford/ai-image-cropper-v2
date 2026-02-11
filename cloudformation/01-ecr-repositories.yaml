@@ -21,6 +21,7 @@ Resources:
   # ========================================
   FrontendECRRepository:
     Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
     Properties:
       RepositoryName: !Sub "${ProjectName}-frontend"
       ImageTagMutability: IMMUTABLE
@@ -54,6 +55,7 @@ Resources:
 
   BackendECRRepository:
     Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
     Properties:
       RepositoryName: !Sub "${ProjectName}-backend"
       ImageTagMutability: IMMUTABLE
