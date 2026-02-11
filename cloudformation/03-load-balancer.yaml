@@ -176,6 +176,9 @@ Resources:
       Subnets: !Ref SubnetIds
       SecurityGroups:
         - !Ref ALBSecurityGroup
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: '120'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-alb-${Environment}'

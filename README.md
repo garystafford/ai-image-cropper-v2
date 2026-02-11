@@ -132,7 +132,7 @@ graph LR
     S8 --> S9[09 - CloudFront<br/>+ Route 53]
 ```
 
-Steps 7-9 (highlighted) are optional and deploy automatically when `AppDomainName`, `CognitoDomainPrefix`, `HostedZoneId`, and `CloudFrontCertificateArn` are configured in `common-parameters.json`.
+Steps 7-9 are optional and deploy automatically when `AppDomainName`, `HostedZoneId`, and `CloudFrontCertificateArn` are configured in `common-parameters.json`. Step 7 creates a new Cognito pool when `CognitoDomainPrefix` is set, or is skipped when reusing an existing pool via `CognitoUserPoolArn`, `CognitoUserPoolClientId`, and `CognitoUserPoolDomain`.
 
 #### Request Flow
 

@@ -244,13 +244,24 @@ get_param_value() {
 # ========================================
 ENABLE_COGNITO=false
 ENABLE_CLOUDFRONT=false
+USE_EXISTING_COGNITO=false
 
 COGNITO_DOMAIN_PREFIX=$(get_param_value "CognitoDomainPrefix")
 APP_DOMAIN_NAME=$(get_param_value "AppDomainName")
 HOSTED_ZONE_ID=$(get_param_value "HostedZoneId")
 CF_CERT_ARN=$(get_param_value "CloudFrontCertificateArn")
 
-if [[ -n "$COGNITO_DOMAIN_PREFIX" && -n "$APP_DOMAIN_NAME" ]]; then
+# Check for pre-existing Cognito pool parameters (reuse existing pool)
+EXISTING_COGNITO_ARN=$(get_param_value "CognitoUserPoolArn")
+EXISTING_COGNITO_CLIENT_ID=$(get_param_value "CognitoUserPoolClientId")
+EXISTING_COGNITO_DOMAIN=$(get_param_value "CognitoUserPoolDomain")
+
+if [[ -n "$EXISTING_COGNITO_ARN" && -n "$EXISTING_COGNITO_CLIENT_ID" && -n "$EXISTING_COGNITO_DOMAIN" ]]; then
+    # Reuse an existing Cognito User Pool (skip step 7)
+    USE_EXISTING_COGNITO=true
+    ENABLE_COGNITO=true
+elif [[ -n "$COGNITO_DOMAIN_PREFIX" && -n "$APP_DOMAIN_NAME" ]]; then
+    # Create a new Cognito User Pool via CloudFormation (step 7)
     ENABLE_COGNITO=true
 fi
 
@@ -259,7 +270,7 @@ if [[ -n "$APP_DOMAIN_NAME" && -n "$HOSTED_ZONE_ID" && -n "$CF_CERT_ARN" ]]; the
 fi
 
 # Validate optional templates if features are enabled
-if [[ "$ENABLE_COGNITO" == true ]]; then
+if [[ "$ENABLE_COGNITO" == true && "$USE_EXISTING_COGNITO" == false ]]; then
     if [[ ! -f "$TEMPLATE_DIR/08-cognito.yaml" ]]; then
         print_error "CloudFormation template not found: $TEMPLATE_DIR/08-cognito.yaml"
         exit 1
@@ -283,8 +294,10 @@ echo "Project: $PROJECT_NAME"
 echo "Environment: $ENVIRONMENT"
 echo "Region: $REGION"
 echo "Templates: $TEMPLATE_DIR/"
-if [[ "$ENABLE_COGNITO" == true ]]; then
-    print_info "Cognito authentication enabled (domain prefix: $COGNITO_DOMAIN_PREFIX)"
+if [[ "$USE_EXISTING_COGNITO" == true ]]; then
+    print_info "Cognito authentication enabled (reusing existing pool: $EXISTING_COGNITO_ARN)"
+elif [[ "$ENABLE_COGNITO" == true ]]; then
+    print_info "Cognito authentication enabled (new pool, domain prefix: $COGNITO_DOMAIN_PREFIX)"
 fi
 if [[ "$ENABLE_CLOUDFRONT" == true ]]; then
     print_info "CloudFront distribution enabled (domain: $APP_DOMAIN_NAME)"
@@ -695,7 +708,13 @@ get_stack_outputs "$STACK_NAME_SERVICE"
 # ========================================
 # Step 7: Deploy Cognito User Pool (Optional)
 # ========================================
-if [[ "$ENABLE_COGNITO" == true ]]; then
+if [[ "$USE_EXISTING_COGNITO" == true ]]; then
+    print_header "Step 7: Using Existing Cognito User Pool"
+    print_success "Reusing existing Cognito User Pool (skipping stack creation)"
+    print_success "  Pool ARN: $EXISTING_COGNITO_ARN"
+    print_success "  Client ID: $EXISTING_COGNITO_CLIENT_ID"
+    print_success "  Domain: $EXISTING_COGNITO_DOMAIN"
+elif [[ "$ENABLE_COGNITO" == true ]]; then
     STACK_NAME_COGNITO="${PROJECT_NAME}-cognito-${ENVIRONMENT}"
 
     print_header "Step 7: Deploying Cognito User Pool"
@@ -788,12 +807,22 @@ if [[ "$ENABLE_COGNITO" == true ]] || [[ "$ENABLE_CLOUDFRONT" == true ]]; then
         fi
     fi
 
-    # Retrieve Cognito stack outputs
+    # Retrieve Cognito configuration
     COGNITO_USER_POOL_ARN=""
     COGNITO_CLIENT_ID=""
     COGNITO_DOMAIN=""
 
-    if [[ "$ENABLE_COGNITO" == true ]]; then
+    if [[ "$USE_EXISTING_COGNITO" == true ]]; then
+        # Use pre-existing Cognito pool values from common-parameters.json
+        COGNITO_USER_POOL_ARN="$EXISTING_COGNITO_ARN"
+        COGNITO_CLIENT_ID="$EXISTING_COGNITO_CLIENT_ID"
+        COGNITO_DOMAIN="$EXISTING_COGNITO_DOMAIN"
+
+        print_success "Using existing Cognito User Pool ARN: $COGNITO_USER_POOL_ARN"
+        print_success "Using existing Cognito Client ID: $COGNITO_CLIENT_ID"
+        print_success "Using existing Cognito Domain: $COGNITO_DOMAIN"
+    elif [[ "$ENABLE_COGNITO" == true ]]; then
+        # Retrieve values from Cognito CloudFormation stack outputs
         STACK_NAME_COGNITO="${PROJECT_NAME}-cognito-${ENVIRONMENT}"
 
         COGNITO_USER_POOL_ARN=$(aws cloudformation describe-stacks \
@@ -996,7 +1025,9 @@ echo "  3. ALB: $STACK_NAME_ALB"
 echo "  4. IAM: $STACK_NAME_IAM"
 echo "  5. Cluster: $STACK_NAME_CLUSTER"
 echo "  6. Service: $STACK_NAME_SERVICE"
-if [[ "$ENABLE_COGNITO" == true ]]; then
+if [[ "$USE_EXISTING_COGNITO" == true ]]; then
+    echo "  7. Cognito: (existing pool - no stack)"
+elif [[ "$ENABLE_COGNITO" == true ]]; then
     echo "  7. Cognito: ${PROJECT_NAME}-cognito-${ENVIRONMENT}"
 fi
 if [[ "$ENABLE_COGNITO" == true ]] || [[ "$ENABLE_CLOUDFRONT" == true ]]; then
@@ -1018,11 +1049,16 @@ echo "Next Steps:"
 echo "  1. Verify all services are running: aws ecs describe-services --cluster ${PROJECT_NAME}-cluster-${ENVIRONMENT} --services ${PROJECT_NAME}-service-${ENVIRONMENT} --region $REGION"
 echo "  2. Check application health at the URL above"
 if [[ "$ENABLE_COGNITO" == true ]]; then
-    COGNITO_POOL_ID=$(aws cloudformation describe-stacks \
-        --stack-name "${PROJECT_NAME}-cognito-${ENVIRONMENT}" \
-        --region "$REGION" \
-        --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" \
-        --output text 2>/dev/null || echo "<pool-id>")
+    if [[ "$USE_EXISTING_COGNITO" == true ]]; then
+        # Extract pool ID from ARN (last segment after '/')
+        COGNITO_POOL_ID=$(echo "$EXISTING_COGNITO_ARN" | awk -F'/' '{print $NF}')
+    else
+        COGNITO_POOL_ID=$(aws cloudformation describe-stacks \
+            --stack-name "${PROJECT_NAME}-cognito-${ENVIRONMENT}" \
+            --region "$REGION" \
+            --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" \
+            --output text 2>/dev/null || echo "<pool-id>")
+    fi
     echo "  3. Create Cognito users: aws cognito-idp admin-create-user --user-pool-id $COGNITO_POOL_ID --username <email> --user-attributes Name=email,Value=<email> --region $REGION"
 fi
 echo ""

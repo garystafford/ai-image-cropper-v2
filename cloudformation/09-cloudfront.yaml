@@ -84,6 +84,8 @@ Resources:
               OriginProtocolPolicy: https-only
               OriginSSLProtocols:
                 - TLSv1.2
+              OriginReadTimeout: 60
+              OriginKeepaliveTimeout: 5
             OriginCustomHeaders:
               - HeaderName: X-Origin-Verify
                 HeaderValue: !Ref OriginVerifyHeaderValue

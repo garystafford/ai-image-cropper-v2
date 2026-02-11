@@ -43,6 +43,9 @@ All deployment parameters are now in one file for easier management. The script 
 | **CognitoDomainPrefix** | Cognito | No | Prefix for Cognito hosted UI domain | `my-app` | `""` |
 | **HostedZoneId** | CloudFront | No | Route 53 hosted zone ID for DNS record | `Z0123456789ABC` | `""` |
 | **CloudFrontCertificateArn** | CloudFront | No | ACM certificate ARN for CloudFront (must be in us-east-1) | `arn:aws:acm:...` | `""` |
+| **CognitoUserPoolArn** | ALB (step 8) | No | ARN of an existing Cognito User Pool to reuse (skips step 7) | `arn:aws:cognito-idp:...` | `""` |
+| **CognitoUserPoolClientId** | ALB (step 8) | No | App Client ID from the existing Cognito User Pool | `abc123def456` | `""` |
+| **CognitoUserPoolDomain** | ALB (step 8) | No | Full domain of the existing Cognito hosted UI | `prefix.auth.us-east-1.amazoncognito.com` | `""` |
 
 ### How to Find AWS Resource IDs
 
@@ -98,29 +101,47 @@ The deployment script automatically detects your public IP address and configure
 
 ### CloudFront + Cognito Configuration (Optional)
 
-To enable CloudFront CDN with Cognito authentication, set all four of these parameters:
+There are two ways to enable CloudFront CDN with Cognito authentication:
 
-#### AppDomainName
+#### Option A: Create a New Cognito Pool
 
-The fully qualified domain name for the application (e.g., `app.example.com`). Used as the CloudFront alternate domain name and the Cognito callback URL.
+Set all four of these parameters to create a new Cognito User Pool:
 
-#### CognitoDomainPrefix
+- **AppDomainName** - FQDN for the application (e.g., `app.example.com`). Used as the CloudFront alternate domain name and the Cognito callback URL.
+- **CognitoDomainPrefix** - Prefix for the Cognito hosted UI domain. The full domain will be `<prefix>.auth.<region>.amazoncognito.com`. Must be globally unique across all AWS accounts.
+- **HostedZoneId** - Route 53 hosted zone ID where the A record alias to CloudFront will be created.
+- **CloudFrontCertificateArn** - ACM certificate ARN for CloudFront HTTPS. Must be in us-east-1.
 
-Prefix for the Cognito hosted UI domain. The full domain will be `<prefix>.auth.<region>.amazoncognito.com`. Must be globally unique across all AWS accounts.
+#### Option B: Reuse an Existing Cognito Pool
 
-#### HostedZoneId
+To skip creating a new Cognito pool (step 7) and reuse an existing one, set these three parameters instead of `CognitoDomainPrefix`:
 
-Route 53 hosted zone ID where the A record alias to CloudFront will be created. The domain in this zone must match the `AppDomainName`.
+- **CognitoUserPoolArn** - ARN of the existing Cognito User Pool
+- **CognitoUserPoolClientId** - App Client ID configured with callback URL `https://<AppDomainName>/oauth2/idpresponse`
+- **CognitoUserPoolDomain** - Full domain of the Cognito hosted UI (e.g., `my-app.auth.us-east-1.amazoncognito.com`)
 
-#### CloudFrontCertificateArn
+You must also set `AppDomainName`, `HostedZoneId`, and `CloudFrontCertificateArn` for CloudFront.
 
-ACM certificate ARN for CloudFront HTTPS. Must be in us-east-1 (CloudFront requirement). Can be the same wildcard certificate used by the ALB if both are in us-east-1.
+Before deploying, create a new App Client in the existing pool:
+
+```bash
+aws cognito-idp create-user-pool-client \
+  --user-pool-id <pool-id> \
+  --client-name "my-app-alb-client" \
+  --generate-secret \
+  --allowed-o-auth-flows code \
+  --allowed-o-auth-flows-user-pool-client \
+  --allowed-o-auth-scopes openid \
+  --callback-urls "https://<AppDomainName>/oauth2/idpresponse" \
+  --supported-identity-providers COGNITO \
+  --region us-east-1
+```
 
 #### How It Works
 
-When all four parameters are provided, the deploy script automatically:
+The deploy script automatically:
 
-1. Creates a Cognito User Pool with admin-only registration
+1. Creates a Cognito User Pool (Option A) or uses the existing one (Option B)
 2. Looks up the CloudFront managed prefix list (`com.amazonaws.global.cloudfront.origin-facing`)
 3. Updates the ALB security group to allow only CloudFront IPs (prefix list on port 443)
 4. Creates a WAF WebACL with origin verify header validation
@@ -221,6 +242,18 @@ Here's a complete example configuration file:
   {
     "ParameterKey": "CloudFrontCertificateArn",
     "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "CognitoUserPoolArn",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "CognitoUserPoolClientId",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "CognitoUserPoolDomain",
+    "ParameterValue": ""
   }
 ]
 ```
@@ -247,7 +280,7 @@ The deployment script automatically handles the correct template order:
 6. **06-ecs-service.yaml** - ECS service and task definition
    - Parameters: ProjectName, Environment, SubnetIds, ECSSecurityGroupId, FrontendImageTag, BackendImageTag, TaskCpu, TaskMemory, DesiredCount
 
-7. **08-cognito.yaml** - Cognito User Pool (optional, when AppDomainName and CognitoDomainPrefix are set)
+7. **08-cognito.yaml** - Cognito User Pool (optional, when AppDomainName and CognitoDomainPrefix are set; skipped when CognitoUserPoolArn is provided)
    - Parameters: ProjectName, Environment, AppDomainName, CognitoDomainPrefix
 
 8. **03-load-balancer.yaml** (update) - Adds WAF, Cognito auth, and CloudFront prefix list to ALB

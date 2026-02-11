@@ -50,5 +50,17 @@
   {
     "ParameterKey": "CloudFrontCertificateArn",
     "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "CognitoUserPoolArn",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "CognitoUserPoolClientId",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "CognitoUserPoolDomain",
+    "ParameterValue": ""
   }
 ]

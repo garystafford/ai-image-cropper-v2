@@ -47,6 +47,8 @@ cd ..
 
 The script deploys up to 9 CloudFormation stacks in order, automatically detecting whether to create or update each stack. Steps 7-9 (Cognito, ALB update, CloudFront) deploy automatically when `AppDomainName`, `CognitoDomainPrefix`, `HostedZoneId`, and `CloudFrontCertificateArn` are configured in `common-parameters.json`.
 
+To reuse an existing Cognito User Pool instead of creating a new one, set `CognitoUserPoolArn`, `CognitoUserPoolClientId`, and `CognitoUserPoolDomain` in `common-parameters.json`. This skips step 7 (Cognito stack creation) and passes the existing pool values directly to the ALB configuration in step 8.
+
 ## Configuration
 
 Edit the variables at the top of `deploy-cloudformation.sh`:
@@ -206,7 +208,7 @@ When CloudFront is configured, a defense-in-depth model restricts ALB access:
 
 1. **Security group**: Only allows HTTPS (port 443) from the CloudFront managed prefix list (`com.amazonaws.global.cloudfront.origin-facing`). No CIDR rules, no `0.0.0.0/0`.
 2. **WAF WebACL**: Validates a secret `X-Origin-Verify` header on every request. Requests without the correct header are blocked with 403. The secret is stored in SSM Parameter Store and shared between CloudFront (origin custom header) and WAF.
-3. **Cognito authentication**: ALB `authenticate-cognito` listener action requires users to log in via Cognito Hosted UI before reaching the application. The user pool is admin-only (no self-registration).
+3. **Cognito authentication**: ALB `authenticate-cognito` listener action requires users to log in via Cognito Hosted UI before reaching the application. The user pool is admin-only (no self-registration). Can use a dedicated pool (step 7) or an existing shared pool via `CognitoUserPoolArn` parameters.
 
 ### Origin Verify Secret
 
