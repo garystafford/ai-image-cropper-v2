@@ -45,7 +45,7 @@ cd ..
 ./deploy-cloudformation.sh
 ```
 
-The script deploys up to 9 CloudFormation stacks in order, automatically detecting whether to create or update each stack. Steps 7-9 (Cognito, ALB update, CloudFront) deploy automatically when `AppDomainName`, `CognitoDomainPrefix`, `HostedZoneId`, and `CloudFrontCertificateArn` are configured in `common-parameters.json`.
+The script deploys up to 9 CloudFormation stacks in order, automatically detecting whether to create or update each stack. For existing stacks, the script always attempts an update and gracefully handles "No updates to be performed" responses. Steps 7-9 (Cognito, ALB update, CloudFront) deploy automatically when `AppDomainName`, `CognitoDomainPrefix`, `HostedZoneId`, and `CloudFrontCertificateArn` are configured in `common-parameters.json`.
 
 To reuse an existing Cognito User Pool instead of creating a new one, set `CognitoUserPoolArn`, `CognitoUserPoolClientId`, and `CognitoUserPoolDomain` in `common-parameters.json`. This skips step 7 (Cognito stack creation) and passes the existing pool values directly to the ALB configuration in step 8.
 
@@ -149,7 +149,23 @@ aws cloudformation delete-stack --stack-name ai-image-cropper-v2-ecr-prod --regi
 aws cloudformation wait stack-delete-complete --stack-name ai-image-cropper-v2-ecr-prod --region us-east-1
 ```
 
-**Warning**: Deleting the ECR stack will also delete all container images stored in the repositories.
+**Warning**: The following resources have `DeletionPolicy: Retain` and will **not** be deleted when their stacks are deleted. You must remove them manually if needed:
+
+- ECR repositories (frontend and backend) — including all stored container images
+- EFS file system — including all stored ML models
+- CloudWatch log group — including all historical logs
+- Cognito User Pool — including all user accounts
+
+To force-delete retained resources after stack deletion:
+
+```bash
+# Delete ECR repositories
+aws ecr delete-repository --repository-name ai-image-cropper-v2-frontend --force --region us-east-1
+aws ecr delete-repository --repository-name ai-image-cropper-v2-backend --force --region us-east-1
+
+# Delete EFS file system (get ID from AWS console or CLI)
+aws efs delete-file-system --file-system-id fs-xxxxxxxx --region us-east-1
+```
 
 ## Troubleshooting
 
@@ -195,6 +211,8 @@ This script builds both frontend and backend images, pushes to ECR, registers a 
 - ECR repositories have image scanning enabled on push
 - ECR lifecycle policy keeps only the last 10 images
 - EFS file system is encrypted at rest with transit encryption (TLS)
+- ALB HTTPS listener enforces TLS 1.2+ with `ELBSecurityPolicy-TLS13-1-2-2021-06`
+- Stateful resources (ECR, EFS, Cognito, CloudWatch) have `DeletionPolicy: Retain` to prevent accidental data loss
 - Deployment circuit breaker enabled with automatic rollback
 - `common-parameters.json` is gitignored to prevent committing real AWS resource IDs
 

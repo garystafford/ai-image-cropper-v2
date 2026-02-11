@@ -308,7 +308,7 @@ To update any parameter after initial deployment:
 2. Run `./deploy-cloudformation.sh` again
 3. The script will update only the affected stacks
 
-**Note:** The script automatically skips stacks that are already successfully deployed and haven't changed. It will only update stacks whose parameters or templates have been modified.
+**Note:** The script always attempts to update existing stacks. If no changes are detected, CloudFormation returns "No updates to be performed" and the script continues to the next stack.
 
 ## Parameters Automatically Provided
 

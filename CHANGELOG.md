@@ -108,6 +108,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated cloudformation/README.md to reflect all 7 CloudFormation templates
 - Added ECS Fargate and ALB cost estimates to documentation
 
+## [1.0.3] - 2026-02-10
+
+### Security
+
+- Added TLS 1.3 policy (`ELBSecurityPolicy-TLS13-1-2-2021-06`) to ALB HTTPS listener
+- Fixed nginx `add_header` inheritance: security headers now apply to static asset responses
+- Disabled debug parameter exposure in `/api/cli-process` endpoint
+- Pinned uv installer image to specific digest in Dockerfile.backend
+
+### Fixed
+
+- Fixed deploy script exit code capture bug (`$?` consumed by `||` operator) across all 8 stack blocks
+- Removed `is_stack_complete` skip logic for proper update idempotency — stacks now always attempt update
+- Changed file uploads from full `await file.read()` to chunked 8KB reads with early abort on oversized files
+- Added `finally:` blocks for input file cleanup to all 3 upload endpoints (prevents disk fill)
+- Fixed unused exception variable lint warnings in API error handlers
+
+### Infrastructure
+
+- Added `DeletionPolicy: Retain` to stateful resources: ECR repositories, EFS file system, CloudWatch log group, Cognito User Pool
+- Added CloudFront `OriginReadTimeout: 60` and `OriginKeepaliveTimeout: 5` to prevent 504 on slow responses
+- Added ALB `idle_timeout.timeout_seconds: 120` to align with nginx proxy timeouts
+- Added `create-cognito-client.sh` script for reusing existing Cognito User Pool across projects
+
+### Development
+
+- Enabled CI test job in GitHub Actions workflow (pytest with coverage)
+- Added non-root user (`appuser`) to backend Dockerfile with explicit UID/GID
+
+### Documentation
+
+- Updated cloudformation/README.md with DeletionPolicy retention warnings and cleanup instructions
+- Added TLS policy and DeletionPolicy notes to Security Notes section
+- Updated deploy script behavior description (always attempts update vs. skip)
+
 ## [Unreleased]
 
 ### Planned
@@ -115,7 +150,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit tests with pytest and coverage reporting
 - Additional detection methods
 - Batch processing optimizations
-- Enhanced error handling and validation
 - Performance benchmarking suite
 - GPU memory optimization for RF-DETR
 
@@ -142,5 +176,6 @@ This is the initial production release of AI Image Cropper v2, featuring multipl
 
 ---
 
+[1.0.3]: https://github.com/garystafford/ai-image-cropper-v2/releases/tag/v1.0.3
 [1.0.2]: https://github.com/garystafford/ai-image-cropper-v2/releases/tag/v1.0.2
 [1.0.0]: https://github.com/garystafford/ai-image-cropper-v2/releases/tag/v1.0.0

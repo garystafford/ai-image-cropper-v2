@@ -561,7 +561,7 @@ uv python list
 ai-image-cropper-v2/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml                 # CI pipeline (lint, format, build)
+│       └── ci.yml                 # CI pipeline (lint, format, build, test)
 ├── backend/                       # Backend Python application
 │   ├── __init__.py
 │   ├── api.py                     # FastAPI REST API
@@ -595,6 +595,7 @@ ai-image-cropper-v2/
 ├── Dockerfile.frontend            # Frontend Docker image
 ├── docker-compose.yml             # Docker Swarm stack configuration
 ├── nginx-lb.conf                  # Nginx load balancer configuration
+├── create-cognito-client.sh        # Create Cognito app client for existing pool
 ├── deploy-cloudformation.sh       # CloudFormation deployment script
 ├── update_ecs_task.sh             # ECS image build and deploy script
 ├── test_gpu.py                    # GPU/CUDA availability test
