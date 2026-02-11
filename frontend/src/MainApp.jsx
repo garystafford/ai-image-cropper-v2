@@ -16,7 +16,6 @@ function MainApp() {
 
   // Apply theme to document when theme changes
   useEffect(() => {
-    console.log('Setting theme to:', theme) // Debug log
     document.documentElement.setAttribute('data-theme', theme)
     document.body.className = theme === 'dark' ? 'awsui-dark-mode' : ''
     localStorage.setItem('theme', theme)
@@ -24,7 +23,6 @@ function MainApp() {
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light'
-    console.log('🎨 Toggling theme from', theme, 'to', newTheme)
     setTheme(newTheme)
   }
 

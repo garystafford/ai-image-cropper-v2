@@ -66,6 +66,12 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
+    # Security headers
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
     # Frontend static files
     location / {
         try_files \$uri \$uri/ /index.html;
@@ -75,6 +81,7 @@ server {
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
         expires 1y;
         add_header Cache-Control "public, immutable";
+        add_header X-Content-Type-Options "nosniff" always;
     }
 
     # Health check endpoint

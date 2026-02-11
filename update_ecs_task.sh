@@ -1,7 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2016  # Backticks in single quotes are intentional JMESPath syntax for AWS CLI
 
-set -e  # Exit on error
+set -eo pipefail  # Exit on error, fail on pipe errors
 
 # Configuration
 PROJECT_NAME="ai-image-cropper-v2"

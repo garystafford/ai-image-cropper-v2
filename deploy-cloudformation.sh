@@ -4,7 +4,7 @@
 # Deploys complete AWS infrastructure for AI Image Cropper application
 # Run from project root directory
 
-set -e  # Exit on error
+set -eo pipefail  # Exit on error, fail on pipe errors
 
 # ========================================
 # Configuration

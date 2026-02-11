@@ -55,9 +55,12 @@ app.add_middleware(
         "http://localhost:8080",
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
+
+# Maximum upload file size (100 MB)
+MAX_UPLOAD_SIZE = 100 * 1024 * 1024
 
 # Create directories for uploaded and processed images
 # Use environment variables if available (for Docker), otherwise use local paths
@@ -126,9 +129,23 @@ async def root():
     }
 
 
-@app.get("/health")
+@app.get("/api/health")
 async def health():
-    """Health check endpoint for Docker healthchecks."""
+    """Health check endpoint for ALB and Docker healthchecks."""
+    return {
+        "status": "healthy",
+        "models": {
+            "yolo": ULTRALYTICS_AVAILABLE,
+            "detr": DETR_AVAILABLE,
+            "rtdetr": RTDETR_AVAILABLE,
+            "rfdetr": RFDETR_AVAILABLE,
+        },
+    }
+
+
+@app.get("/health")
+async def health_simple():
+    """Simple health check for backwards compatibility."""
     return {"status": "healthy"}
 
 
@@ -170,8 +187,13 @@ async def process_image(
     input_path = UPLOAD_DIR / f"{file_id}{file_extension}"
 
     try:
+        content = await file.read()
+        if len(content) > MAX_UPLOAD_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail="File too large. Maximum upload size is 100 MB.",
+            )
         with input_path.open("wb") as f:
-            content = await file.read()
             f.write(content)
 
         # Create cropper instance
@@ -382,9 +404,14 @@ async def process_image(
             "bounds": bounds,
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("Error processing image")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred while processing the image.",
+        )
 
 
 @app.post("/api/batch-crop")
@@ -423,8 +450,13 @@ async def batch_crop(
     input_path = UPLOAD_DIR / f"{file_id}{file_extension}"
 
     try:
+        content = await file.read()
+        if len(content) > MAX_UPLOAD_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail="File too large. Maximum upload size is 100 MB.",
+            )
         with input_path.open("wb") as f:
-            content = await file.read()
             f.write(content)
 
         # Load image and get detections
@@ -504,9 +536,14 @@ async def batch_crop(
             "message": f"✅ Successfully cropped {len(cropped_files)} object(s). Files ready for download.",
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("Batch crop error")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred during batch cropping.",
+        )
 
 
 @app.post("/api/cli-process")
@@ -548,8 +585,13 @@ async def cli_process_image(
     input_path = UPLOAD_DIR / f"{file_id}{file_extension}"
 
     try:
+        content = await file.read()
+        if len(content) > MAX_UPLOAD_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail="File too large. Maximum upload size is 100 MB.",
+            )
         with input_path.open("wb") as f:
-            content = await file.read()
             f.write(content)
 
         # Create cropper instance
@@ -830,9 +872,14 @@ async def cli_process_image(
 
         return result
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("CLI processing error")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred during CLI processing.",
+        )
 
 
 if __name__ == "__main__":

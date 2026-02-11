@@ -197,7 +197,7 @@ Resources:
       TargetType: ip
       HealthCheckEnabled: true
       HealthCheckProtocol: HTTP
-      HealthCheckPath: /
+      HealthCheckPath: /api/health
       HealthCheckIntervalSeconds: 30
       HealthCheckTimeoutSeconds: 5
       HealthyThresholdCount: 2
@@ -249,7 +249,7 @@ Resources:
               UserPoolDomain: !Ref CognitoUserPoolDomain
               OnUnauthenticatedRequest: authenticate
               Scope: openid
-              SessionTimeout: 43200
+              SessionTimeout: 3600
           - Type: forward
             Order: 2
             TargetGroupArn: !Ref TargetGroup
@@ -269,8 +269,44 @@ Resources:
         Block: {}
       Description: !Sub 'Blocks requests not originating from CloudFront for ${ProjectName}'
       Rules:
-        - Name: verify-origin-header
+        - Name: rate-limit
           Priority: 0
+          Action:
+            Block: {}
+          Statement:
+            RateBasedStatement:
+              Limit: 2000
+              AggregateKeyType: IP
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: !Sub '${ProjectName}-rate-limit-${Environment}'
+            SampledRequestsEnabled: true
+        - Name: aws-common-rules
+          Priority: 1
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: !Sub '${ProjectName}-common-rules-${Environment}'
+            SampledRequestsEnabled: true
+        - Name: aws-known-bad-inputs
+          Priority: 2
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesKnownBadInputsRuleSet
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: !Sub '${ProjectName}-bad-inputs-${Environment}'
+            SampledRequestsEnabled: true
+        - Name: verify-origin-header
+          Priority: 10
           Action:
             Allow: {}
           Statement:

@@ -56,6 +56,42 @@ Resources:
           AcmCertificateArn: !Ref CloudFrontCertificateArn
           SslSupportMethod: sni-only
           MinimumProtocolVersion: TLSv1.2_2021
+        # Cache static assets (js, css, images, fonts)
+        CacheBehaviors:
+          - PathPattern: '*.js'
+            TargetOriginId: alb-origin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+            CachedMethods:
+              - GET
+              - HEAD
+            # CachingOptimized managed policy (86400s default TTL)
+            CachePolicyId: '658327ea-f89d-4fab-a63d-7e88639e58f6'
+            Compress: true
+          - PathPattern: '*.css'
+            TargetOriginId: alb-origin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+            CachedMethods:
+              - GET
+              - HEAD
+            CachePolicyId: '658327ea-f89d-4fab-a63d-7e88639e58f6'
+            Compress: true
+          - PathPattern: '/assets/*'
+            TargetOriginId: alb-origin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+            CachedMethods:
+              - GET
+              - HEAD
+            CachePolicyId: '658327ea-f89d-4fab-a63d-7e88639e58f6'
+            Compress: true
         DefaultCacheBehavior:
           TargetOriginId: alb-origin
           ViewerProtocolPolicy: redirect-to-https
@@ -70,7 +106,7 @@ Resources:
           CachedMethods:
             - GET
             - HEAD
-          # CachingDisabled - no caching for dynamic application
+          # CachingDisabled - no caching for dynamic/API requests
           CachePolicyId: '4135ea2d-6df8-44a3-9df3-4b5a84be39ad'
           # AllViewer - forwards all headers (including Host), cookies, and query strings
           OriginRequestPolicyId: '216adef6-5c7f-47e4-b989-5492eafa07d3'

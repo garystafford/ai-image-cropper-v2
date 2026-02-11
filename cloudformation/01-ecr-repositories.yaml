@@ -23,7 +23,7 @@ Resources:
     Type: AWS::ECR::Repository
     Properties:
       RepositoryName: !Sub "${ProjectName}-frontend"
-      ImageTagMutability: MUTABLE
+      ImageTagMutability: IMMUTABLE
       ImageScanningConfiguration:
         ScanOnPush: true
       LifecyclePolicy:
@@ -56,7 +56,7 @@ Resources:
     Type: AWS::ECR::Repository
     Properties:
       RepositoryName: !Sub "${ProjectName}-backend"
-      ImageTagMutability: MUTABLE
+      ImageTagMutability: IMMUTABLE
       ImageScanningConfiguration:
         ScanOnPush: true
       LifecyclePolicy:

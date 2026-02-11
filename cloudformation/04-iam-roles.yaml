@@ -62,7 +62,7 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          # CloudWatch Logs permissions
+          # CloudWatch Logs permissions (scoped to project log group)
           - Effect: Allow
             Action:
               - logs:CreateLogGroup
@@ -70,7 +70,8 @@ Resources:
               - logs:PutLogEvents
               - logs:DescribeLogGroups
               - logs:DescribeLogStreams
-            Resource: '*'
+            Resource:
+              - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/ecs/${ProjectName}-${Environment}*'
       Roles:
         - !Ref TaskRole
 

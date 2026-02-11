@@ -13,7 +13,7 @@
 #   ./create-cognito-client.sh
 #   ./create-cognito-client.sh --pool-id us-east-1_XXXXXXXXX  # override pool ID
 
-set -e  # Exit on error
+set -eo pipefail  # Exit on error, fail on pipe errors
 
 # ========================================
 # Configuration
